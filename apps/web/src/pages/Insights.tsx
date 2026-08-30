@@ -8,15 +8,43 @@ import {
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
 import { HELP } from '../lib/help';
-import { faDigits } from '../lib/date';
+import { faDigits, toJalali } from '../lib/date';
 import { useAuth } from '../lib/auth-store';
+import { useThemeMode } from '../theme/ThemeProvider';
+import { COLOR_TOKENS } from '../theme/tokens';
 
-// رنگ‌ها از همان توکن‌های تم می‌آیند تا نمودار و بقیه‌ی رابط یکی باشند
-const HEALTH_COLORS: Record<string, string> = {
-  ON_TRACK: '#17795e', AT_RISK: '#a35a06', BLOCKED: '#b42318', UNKNOWN: '#9aa5a1',
-};
-const STREAM_COLORS = ['#14675a', '#3f8f7d', '#7fb8a7', '#bcdbd1'];
-const BRAND = '#14675a';
+// recharts رنگ را به‌صورت attributeِ SVG می‌گذارد و var() آنجا کار نمی‌کند،
+// پس رنگ‌های داده را از مقدارِ concreteِ توکن‌ها بر اساس تمِ فعلی می‌سازیم
+// (useChartColors)؛ این‌طور در تیره هم درست است.
+function useChartColors() {
+  const { mode } = useThemeMode();
+  const c = COLOR_TOKENS[mode];
+  return {
+    brand: c.brand,
+    danger: c.danger,
+    warn: c.warn,
+    axisText: c['text-muted'],
+    grid: c['line-soft'],
+    health: { ON_TRACK: c.ok, AT_RISK: c.warn, BLOCKED: c.danger, UNKNOWN: c.unknown } as Record<string, string>,
+    stream: { PRODUCT: c.brand, TECH_DEBT: c.warn, SUPPORT: c.unknown, INFRASTRUCTURE: c.focus } as Record<string, string>,
+    line: c.line,
+  };
+}
+
+// ارقام محورها و تولتیپ‌ها هم باید فارسی باشند، نه لاتین. (رفع B1)
+const numTick = (v: any) => faDigits(v);
+// تولتیپ هماهنگ با تم (در تیره هم خوانا)
+const TOOLTIP = {
+  contentStyle: {
+    background: 'var(--elevated)',
+    border: '1px solid var(--line-soft)',
+    borderRadius: 8,
+    boxShadow: 'var(--shadow-2)',
+  },
+  itemStyle: { color: 'var(--text)' },
+  labelStyle: { color: 'var(--text-muted)' },
+} as const;
+const CHART_MARGIN = { top: 8, right: 12, bottom: 8, left: 12 };
 
 type Overview = {
   totals: Record<string, number>;
@@ -59,6 +87,7 @@ export default function Insights() {
   const [workload, setWorkload] = useState<Workload>([]);
   const [throughput, setThroughput] = useState<{ weekStart: string; count: number }[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const colors = useChartColors();
 
   useEffect(() => {
     setStatus('loading');
@@ -101,31 +130,36 @@ export default function Insights() {
 
   return (
     <>
-      <div className="page-head">
+      <div className="page-head" style={{ marginBottom: 12 }}>
         <div>
           <h1 className="page-title">تصویر کلی</h1>
           <p className="page-subtitle">
             این صفحه برای تصمیم گرفتن است، نه برای امتیاز دادن به افراد.
           </p>
         </div>
-        <Segmented
-          value={tab}
-          onChange={(v) => setTab(v as 'org' | 'planning' | 'team')}
-          options={[
-            { value: 'org', label: 'سازمان (Org)' },
-            { value: 'planning', label: 'برنامه‌ریزی (Planning)' },
-            ...(canSeeTeam ? [{ value: 'team', label: 'تیم (Team)' }] : []),
-          ]}
-        />
       </div>
+
+      {/* ناوبری اصلی این صفحه — سه نما روی یک حقیقت. جلوی چشم، نه گوشه‌ی هدر. */}
+      <Segmented
+        block
+        size="large"
+        value={tab}
+        onChange={(v) => setTab(v as 'org' | 'planning' | 'team')}
+        style={{ marginBottom: 18, maxWidth: 520 }}
+        options={[
+          { value: 'org', label: 'سازمان (Org)' },
+          { value: 'planning', label: 'برنامه‌ریزی (Planning)' },
+          ...(canSeeTeam ? [{ value: 'team', label: 'تیم (Team)' }] : []),
+        ]}
+      />
 
       {tab === 'org' && (
         <>
           <div className="stat-grid" style={{ marginBottom: 16 }}>
             {[
               ['کار در جریان', totals.active, null],
-              ['مسدود', totals.blocked, 'blockedRatio'],
-              ['در خطر', totals.atRisk, null],
+              ['متوقف', totals.blocked, 'blockedRatio'],
+              ['در خطر تأخیر', totals.atRisk, null],
               ['از مهلت گذشته', totals.overdue, null],
               ['بی‌خبر', totals.stale, 'staleItems'],
               ['بدون مجری', totals.unassigned, null],
@@ -136,7 +170,7 @@ export default function Insights() {
                     title={<>{label}{help ? <Help k={String(help)} /> : null}</>}
                     value={faDigits(Number(value))}
                     valueStyle={{
-                      color: Number(value) > 0 && ['مسدود', 'از مهلت گذشته'].includes(String(label)) ? '#cf1322' : undefined,
+                      color: Number(value) > 0 && ['متوقف', 'از مهلت گذشته'].includes(String(label)) ? 'var(--danger)' : undefined,
                     }}
                   />
                 </Card>
@@ -149,28 +183,45 @@ export default function Insights() {
               type="warning"
               showIcon
               style={{ marginBottom: 16 }}
-              message={`${faDigits(totals.blocked)} کار الان مسدود است. اینها اول از همه به تصمیم نیاز دارند، نه به زمان بیشتر.`}
+              message={`${faDigits(totals.blocked)} کار الان متوقف است. اینها اول از همه به تصمیم نیاز دارند، نه به زمان بیشتر.`}
             />
           )}
+
+          {/* چقدر از ظرفیت تیم را پشتیبانی خورد؟ (D-UX-7) */}
+          {(() => {
+            const support = overview.workStreamShare.find((s) => s.stream === 'SUPPORT');
+            return support && support.percent >= 20 ? (
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 16 }}
+                message={`پشتیبانی این دوره ${faDigits(support.percent)}٪ از ظرفیت تیم را گرفت. اگر بالا رفت، یعنی کار محصول ناگزیر عقب می‌افتد.`}
+              />
+            ) : null;
+          })()}
 
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={12}>
               <Card size="small" title={<>ظرفیت کجا خرج می‌شود<Help k="workStream" /></>}>
                 {overview.workStreamShare.some((s) => s.hours > 0) ? (
                   <ResponsiveContainer width="100%" height={260}>
-                    <PieChart>
+                    <PieChart margin={CHART_MARGIN}>
                       <Pie
+                        isAnimationActive={false}
                         data={overview.workStreamShare.filter((s) => s.hours > 0)}
                         dataKey="hours"
                         nameKey="stream"
-                        outerRadius={90}
-                        label={(e: any) => `${t(`stream.${e.stream}`)} ${faDigits(e.percent)}٪`}
+                        innerRadius={52}
+                        outerRadius={82}
                       >
-                        {overview.workStreamShare.map((_, i) => (
-                          <Cell key={i} fill={STREAM_COLORS[i % STREAM_COLORS.length]} />
-                        ))}
+                        {overview.workStreamShare
+                          .filter((s) => s.hours > 0)
+                          .map((s) => (
+                            <Cell key={s.stream} fill={colors.stream[s.stream] ?? colors.line} />
+                          ))}
                       </Pie>
-                      <RTooltip formatter={(v: any, n: any) => [`${v} ساعت`, t(`stream.${n}`)]} />
+                      <Legend formatter={(val: any) => t(`stream.${val}`)} />
+                      <RTooltip {...TOOLTIP} formatter={(v: any, n: any) => [`${faDigits(v)} ساعت`, t(`stream.${n}`)]} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
@@ -182,20 +233,21 @@ export default function Insights() {
             <Col xs={24} lg={12}>
               <Card size="small" title={<>سلامت کارهای باز<Help k="deliveryHealth" /></>}>
                 <ResponsiveContainer width="100%" height={260}>
-                  <PieChart>
+                  <PieChart margin={CHART_MARGIN}>
                     <Pie
+                      isAnimationActive={false}
                       data={overview.healthDistribution}
                       dataKey="count"
                       nameKey="name"
-                      innerRadius={55}
-                      outerRadius={90}
-                      label={(e: any) => `${t(`health.${e.name}`)} (${faDigits(e.count)})`}
+                      innerRadius={52}
+                      outerRadius={82}
                     >
-                      {overview.healthDistribution.map((h, i) => (
-                        <Cell key={i} fill={HEALTH_COLORS[h.name] ?? '#d9d9d9'} />
+                      {overview.healthDistribution.map((h) => (
+                        <Cell key={h.name} fill={colors.health[h.name] ?? colors.line} />
                       ))}
                     </Pie>
-                    <RTooltip formatter={(v: any, n: any) => [v, t(`health.${n}`)]} />
+                    <Legend formatter={(val: any) => t(`health.${val}`)} />
+                    <RTooltip {...TOOLTIP} formatter={(v: any, n: any) => [faDigits(v), t(`health.${n}`)]} />
                   </PieChart>
                 </ResponsiveContainer>
               </Card>
@@ -204,12 +256,12 @@ export default function Insights() {
             <Col xs={24} lg={12}>
               <Card size="small" title="کارها در هر مرحله">
                 <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={overview.stateDistribution.map((s) => ({ ...s, label: t(`state.${s.name}`) }))}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} reversed />
-                    <YAxis orientation="right" allowDecimals={false} />
-                    <RTooltip />
-                    <Bar dataKey="count" name="تعداد" fill={BRAND} radius={[4, 4, 0, 0]} />
+                  <BarChart margin={CHART_MARGIN} data={overview.stateDistribution.map((s) => ({ ...s, label: t(`state.${s.name}`) }))}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11, fill: colors.axisText }} reversed interval={0} />
+                    <YAxis orientation="right" allowDecimals={false} tick={{ fill: colors.axisText }} tickFormatter={numTick} width={32} />
+                    <RTooltip {...TOOLTIP} formatter={(v: any) => [faDigits(v), 'تعداد']} />
+                    <Bar dataKey="count" name="تعداد" fill={colors.brand} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
@@ -218,12 +270,21 @@ export default function Insights() {
             <Col xs={24} lg={12}>
               <Card size="small" title="کارهای بسته‌شده در هر هفته">
                 <ResponsiveContainer width="100%" height={260}>
-                  <LineChart data={throughput}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="weekStart" tick={{ fontSize: 10 }} reversed />
-                    <YAxis orientation="right" allowDecimals={false} />
-                    <RTooltip />
-                    <Line type="monotone" dataKey="count" name="تحویل" stroke={BRAND} strokeWidth={2} />
+                  <LineChart margin={CHART_MARGIN} data={throughput}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
+                    <XAxis
+                      dataKey="weekStart"
+                      tick={{ fontSize: 10, fill: colors.axisText }}
+                      reversed
+                      tickFormatter={(v: any) => faDigits(toJalali(v).slice(5))}
+                    />
+                    <YAxis orientation="right" allowDecimals={false} tick={{ fill: colors.axisText }} tickFormatter={numTick} width={32} />
+                    <RTooltip
+                      {...TOOLTIP}
+                      formatter={(v: any) => [faDigits(v), 'تحویل']}
+                      labelFormatter={(v: any) => faDigits(toJalali(v))}
+                    />
+                    <Line type="monotone" dataKey="count" name="تحویل" stroke={colors.brand} strokeWidth={2} dot={{ fill: colors.brand }} />
                   </LineChart>
                 </ResponsiveContainer>
               </Card>
@@ -281,15 +342,16 @@ export default function Insights() {
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart
                       layout="vertical"
+                      margin={{ top: 8, right: 16, bottom: 8, left: 16 }}
                       data={reasons.byReason.map((r) => ({ ...r, label: t(`reason.${r.reason}`) }))}
                     >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" orientation="top" allowDecimals={false} />
-                      <YAxis type="category" dataKey="label" width={95} tick={{ fontSize: 11 }} orientation="right" />
-                      <RTooltip />
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={colors.grid} />
+                      <XAxis type="number" orientation="top" allowDecimals={false} tick={{ fill: colors.axisText }} tickFormatter={numTick} />
+                      <YAxis type="category" dataKey="label" width={130} tick={{ fontSize: 11, fill: colors.axisText }} orientation="right" />
+                      <RTooltip {...TOOLTIP} formatter={(v: any, n: any) => [faDigits(v), n]} />
                       <Legend />
-                      <Bar dataKey="totalDays" name="روز کاری عقب‌افتادگی" fill="#b42318" radius={[0, 4, 4, 0]} />
-                      <Bar dataKey="count" name="دفعات" fill={BRAND} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="totalDays" name="روز کاری عقب‌افتادگی" fill={colors.danger} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" name="دفعات" fill={colors.brand} radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -302,12 +364,12 @@ export default function Insights() {
               <Card size="small" title="چه چیزهایی بیشتر جابه‌جا می‌شوند">
                 {reasons?.byChangedField.length ? (
                   <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={reasons.byChangedField.map((f) => ({ ...f, label: FIELD_LABEL[f.field] ?? f.field }))}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="label" reversed tick={{ fontSize: 11 }} />
-                      <YAxis orientation="right" allowDecimals={false} />
-                      <RTooltip />
-                      <Bar dataKey="count" name="دفعات تغییر" fill="#a35a06" radius={[4, 4, 0, 0]} />
+                    <BarChart margin={CHART_MARGIN} data={reasons.byChangedField.map((f) => ({ ...f, label: FIELD_LABEL[f.field] ?? f.field }))}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={colors.grid} />
+                      <XAxis dataKey="label" reversed tick={{ fontSize: 11, fill: colors.axisText }} interval={0} />
+                      <YAxis orientation="right" allowDecimals={false} tick={{ fill: colors.axisText }} tickFormatter={numTick} width={32} />
+                      <RTooltip {...TOOLTIP} formatter={(v: any) => [faDigits(v), 'دفعات تغییر']} />
+                      <Bar dataKey="count" name="دفعات تغییر" fill={colors.warn} radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
