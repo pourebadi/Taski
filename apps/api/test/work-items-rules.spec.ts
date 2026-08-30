@@ -28,6 +28,9 @@ const base = {
   workflowState: 'IN_PROGRESS',
   deliveryHealth: 'ON_TRACK',
   priority: 'P2',
+  // actor u1 مجریِ این کار است تا اجازه‌ی تغییرات تعهدآور را داشته باشد (D-UX-2)
+  ownerId: 'u1',
+  primaryAssigneeId: 'u1',
   requiresReview: false,
   requiresQa: false,
   currentEta: new Date('2026-09-01T00:00:00Z'),
@@ -110,6 +113,13 @@ describe('تاریخچه تعهد', () => {
     await expect(
       svc.changeCommitment(actor, 'w1', { newEta: '2026-09-01T00:00:00Z', reasonType: 'BLOCKER' }),
     ).rejects.toThrow(/تغییری/);
+  });
+
+  it('غیرِمالک/مجری اجازه‌ی تغییر تعهد ندارد', async () => {
+    const { svc } = svcWith({ ...base, ownerId: 'someone', primaryAssigneeId: 'other' });
+    await expect(
+      svc.changeCommitment(actor, 'w1', { newEta: '2026-09-10T00:00:00Z', reasonType: 'BLOCKER' }),
+    ).rejects.toThrow(/مالک، مجری یا مدیر/);
   });
 
   it('بیس‌لاین اولیه با تغییر ETA دست‌نخورده می‌ماند', async () => {

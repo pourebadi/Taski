@@ -21,6 +21,19 @@ import {
 
 type Actor = { id: string; role: Role; organizationId: string };
 
+const MANAGE_ROLES = ['ORG_OWNER', 'ADMIN', 'PROJECT_MANAGER', 'TEAM_LEAD'];
+/**
+ * تغییرات تعهدآور (تعهد زمانی، اولویت، مالک، مجری، مهلت) فقط برای مالک کار،
+ * مجری، یا نقش مدیریتی. بقیه فقط می‌بینند و کامنت می‌گذارند. (تصمیم D-UX-2 / رفع C3)
+ */
+function canManageItem(actor: Actor, item: { ownerId?: string | null; primaryAssigneeId?: string | null }): boolean {
+  return (
+    MANAGE_ROLES.includes(actor.role) ||
+    actor.id === item.ownerId ||
+    actor.id === item.primaryAssigneeId
+  );
+}
+
 export type CreateWorkItemInput = {
   title: string;
   description?: string;
@@ -276,6 +289,9 @@ export class WorkItemsService {
   async changeCommitment(actor: Actor, id: string, raw: ChangeCommitmentInput) {
     const input = parseOrThrow(ChangeCommitmentSchema, raw) as ChangeCommitmentInput;
     const item = await this.mustFind(actor, id);
+    if (!canManageItem(actor, item)) {
+      throw new AppError(403, 'FORBIDDEN', 'تغییر تعهد زمانی فقط توسط مالک، مجری یا مدیر ممکن است.');
+    }
 
     const etaChanged =
       input.newEta !== undefined &&
@@ -608,6 +624,11 @@ export class WorkItemsService {
       tracked.push({ field: 'ASSIGNEE', from: item.primaryAssigneeId, to: input.primaryAssigneeId });
     if (input.ownerId !== undefined && input.ownerId !== item.ownerId)
       tracked.push({ field: 'OWNER', from: item.ownerId, to: input.ownerId });
+
+    // تغییرات تعهدآور (اولویت/مهلت/مجری/مالک) فقط برای مالک/مجری/مدیر. (D-UX-2 / C3)
+    if (tracked.length > 0 && !canManageItem(actor, item)) {
+      throw new AppError(403, 'FORBIDDEN', 'این تغییر فقط توسط مالک، مجری یا مدیر این کار ممکن است.');
+    }
 
     const needsReason = tracked.some((t) => (REASON_REQUIRED_FIELDS as readonly string[]).includes(t.field));
     if (needsReason && !input.reasonType) {

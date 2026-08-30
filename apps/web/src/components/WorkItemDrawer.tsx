@@ -134,6 +134,7 @@ export default function WorkItemDrawer({
   const [healthDraft, setHealthDraft] = useState<{ health: string; note: string } | null>(null);
   const [tracked, setTracked] = useState<TrackedChange | null>(null);
   const [users, setUsers] = useState<{ id: string; fullName: string }[]>([]);
+  const [siblings, setSiblings] = useState<{ id: string; key: string; title: string }[]>([]);
   const [sendBack, setSendBack] = useState<{ reasonType?: string; reasonText: string } | null>(null);
   const user = useAuth((s) => s.user);
   const { message } = AntApp.useApp();
@@ -154,7 +155,17 @@ export default function WorkItemDrawer({
   useEffect(() => {
     if (!open) return;
     api<any[]>('/users').then(setUsers).catch(() => setUsers([]));
-  }, [open]);
+    // کارهای فعالِ دیگر — برای فیلد «کدام کار عقب می‌افتد؟» موقع بالابردن اولویت (FE-4)
+    api<any[]>('/work-items')
+      .then((all) =>
+        setSiblings(
+          all
+            .filter((w) => w.id !== id && ['READY', 'IN_PROGRESS', 'IN_REVIEW', 'IN_QA'].includes(w.workflowState))
+            .map((w) => ({ id: w.id, key: w.key, title: w.title })),
+        ),
+      )
+      .catch(() => setSiblings([]));
+  }, [open, id]);
 
   // برای «در خطر» و «مسدود» سرور توضیح اجباری می‌خواهد؛ با مودال می‌گیریم نه prompt مرورگر
   const changeHealth = (health: string) => {
@@ -299,7 +310,8 @@ export default function WorkItemDrawer({
           {t('eta.change')}
         </Button>
         <Button onClick={() => setTracked('PRIORITY')}>اولویت</Button>
-        <Button onClick={() => setTracked('ASSIGNEE')}>واگذاری</Button>
+        <Button onClick={() => setTracked('ASSIGNEE')}>مجری</Button>
+        <Button onClick={() => setTracked('OWNER')}>مسئول</Button>
         <Button onClick={() => setTracked('DUE_DATE')}>مهلت</Button>
         {item.workflowState !== 'CANCELLED' && (
           <Button danger onClick={() => setTracked('CANCEL')}>
@@ -609,6 +621,7 @@ export default function WorkItemDrawer({
           kind={tracked}
           workItemId={id}
           users={users}
+          siblings={siblings}
           onClose={() => setTracked(null)}
           onSaved={() => {
             load();

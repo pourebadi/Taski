@@ -359,17 +359,22 @@ export default function Insights() {
               { title: 'نام', dataIndex: 'fullName' },
               { title: 'کار باز', dataIndex: 'openItems', render: (v) => faDigits(v) },
               {
-                title: <>ساعت تخمینی<Help k="estimateHours" /></>,
+                title: <>ظرفیت مصرف‌شده<Help k="weeklyCapacity" /></>,
                 dataIndex: 'estimatedHours',
-                render: (v: number, row: any) => (
-                  <Tag color={v > row.capacityHours ? 'red' : 'default'}>
-                    {faDigits(v)} از {faDigits(row.capacityHours)}
-                  </Tag>
-                ),
+                render: (v: number, row: any) => {
+                  const cap = row.capacityHours || 0;
+                  const pct = cap > 0 ? Math.round((v / cap) * 100) : 0;
+                  const over = v > cap;
+                  return (
+                    <Tag color={over ? 'red' : pct >= 85 ? 'orange' : 'default'} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {faDigits(v)} از {faDigits(cap)} ساعت · {faDigits(pct)}٪{over ? ' — بیش از ظرفیت' : ''}
+                    </Tag>
+                  );
+                },
               },
               { title: 'P0', dataIndex: 'p0', render: (v) => (v ? <Tag color="red">{faDigits(v)}</Tag> : '—') },
-              { title: 'مسدود', dataIndex: 'blocked', render: (v) => (v ? <Tag color="orange">{faDigits(v)}</Tag> : '—') },
-              { title: 'صف بازبینی', dataIndex: 'inReviewQueue', render: (v) => faDigits(v) },
+              { title: 'متوقف', dataIndex: 'blocked', render: (v) => (v ? <Tag color="orange">{faDigits(v)}</Tag> : '—') },
+              { title: 'منتظر تأیید', dataIndex: 'inReviewQueue', render: (v) => faDigits(v) },
             ]}
           />
         </Card>

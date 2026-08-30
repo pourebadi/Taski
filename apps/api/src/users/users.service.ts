@@ -203,22 +203,89 @@ export class UsersService {
   }
 
   /** واگذاری گروهی کارهای یک نفر به نفر دیگر، پیش از خروج. */
+  /** ظرفیت هفتگی (ساعت). پایه‌ی محاسبه‌ی اشباع افراد است. (D-UX-4 / FE-9) */
+  async changeCapacity(actor: Actor, userId: string, rawHours: unknown) {
+    await this.mustFind(actor, userId);
+    const hours = Math.round(Number(rawHours));
+    if (!Number.isFinite(hours) || hours < 0 || hours > 80) {
+      throw new AppError(422, 'INVALID_CAPACITY', 'ظرفیت باید بین ۰ تا ۸۰ ساعت در هفته باشد.');
+    }
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { weeklyCapacityHours: hours },
+    });
+    await this.audit(actor, 'CAPACITY_CHANGED', userId, null, { hours });
+    return { id: updated.id, weeklyCapacityHours: updated.weeklyCapacityHours };
+  }
+
   async reassignAll(actor: Actor, fromUserId: string, toUserId: string) {
     if (fromUserId === toUserId) {
       throw new AppError(422, 'SAME_USER', 'مبدأ و مقصد واگذاری نمی‌تواند یک نفر باشد.');
     }
     await this.mustFind(actor, fromUserId);
-    await this.mustFind(actor, toUserId);
+    const toUser = await this.mustFind(actor, toUserId);
+    // به کاربر غیرفعال منتقل نکن، وگرنه کار دوباره یتیم می‌شود. (BE-6)
+    if (toUser.status !== 'ACTIVE') {
+      throw new AppError(422, 'INACTIVE_TARGET', 'کارها را نمی‌توان به کاربر غیرفعال منتقل کرد.');
+    }
 
     const where = { organizationId: actor.organizationId, workflowState: { notIn: ['DONE', 'CANCELLED'] } };
-    const [owned, assigned, reviewing] = await this.prisma.$transaction([
-      this.prisma.workItem.updateMany({ where: { ...where, ownerId: fromUserId }, data: { ownerId: toUserId } }),
-      this.prisma.workItem.updateMany({ where: { ...where, primaryAssigneeId: fromUserId }, data: { primaryAssigneeId: toUserId } }),
-      this.prisma.workItem.updateMany({ where: { ...where, reviewerId: fromUserId }, data: { reviewerId: toUserId } }),
-    ]);
+    const items = await this.prisma.workItem.findMany({
+      where: {
+        ...where,
+        OR: [{ ownerId: fromUserId }, { primaryAssigneeId: fromUserId }, { reviewerId: fromUserId }],
+      },
+      select: { id: true, ownerId: true, primaryAssigneeId: true, reviewerId: true },
+    });
 
-    await this.audit(actor, 'WORK_REASSIGNED', fromUserId, null, { toUserId });
-    return { owned: owned.count, assigned: assigned.count, reviewing: reviewing.count };
+    let owned = 0;
+    let assigned = 0;
+    let reviewing = 0;
+
+    // برخلاف قبل، هر آیتم رکورد تغییر و فعالیتِ خودش را می‌گیرد تا دفتر تغییرات
+    // دور زده نشود. (قانون ۲ CLAUDE.md / رفع BE-3)
+    await this.prisma.$transaction(async (tx) => {
+      for (const it of items) {
+        const data: Record<string, string> = {};
+        const records: { field: string; action: string }[] = [];
+        if (it.ownerId === fromUserId) {
+          data.ownerId = toUserId;
+          owned++;
+          records.push({ field: 'OWNER', action: 'OWNER_CHANGED' });
+        }
+        if (it.primaryAssigneeId === fromUserId) {
+          data.primaryAssigneeId = toUserId;
+          assigned++;
+          records.push({ field: 'ASSIGNEE', action: 'ASSIGNEE_CHANGED' });
+        }
+        if (it.reviewerId === fromUserId) {
+          data.reviewerId = toUserId;
+          reviewing++;
+          records.push({ field: 'REVIEWER', action: 'REVIEWER_CHANGED' });
+        }
+        await tx.workItem.update({ where: { id: it.id }, data: { ...data, lastActivityAt: new Date() } });
+        for (const r of records) {
+          await tx.changeRecord.create({
+            data: {
+              id: randomUUID(),
+              workItemId: it.id,
+              field: r.field,
+              fromValue: fromUserId,
+              toValue: toUserId,
+              reasonType: 'EXTERNAL',
+              reasonText: 'انتقال گروهی هنگام خروج یا مرخصی عضو',
+              changedById: actor.id,
+            },
+          });
+          await tx.activity.create({
+            data: { id: randomUUID(), workItemId: it.id, actorId: actor.id, action: r.action, fromValue: fromUserId, toValue: toUserId },
+          });
+        }
+      }
+    });
+
+    await this.audit(actor, 'WORK_REASSIGNED', fromUserId, null, { toUserId, owned, assigned, reviewing });
+    return { owned, assigned, reviewing };
   }
 
   private async assertNotLastAdmin(organizationId: string, excludingUserId: string) {
