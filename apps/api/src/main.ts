@@ -4,7 +4,7 @@ import { join } from 'path';
 import { mkdirSync } from 'fs';
 import { AppModule } from './app.module';
 import { AppExceptionFilter } from './common/errors';
-import * as cookieParser from 'cookie-parser';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   process.env.TZ = process.env.TZ ?? 'Asia/Tehran';
