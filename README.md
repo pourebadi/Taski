@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🚀 PE-OS — Taski
+# 🚀 Taski
 
 ### The Product & Project Execution Operating System
 
