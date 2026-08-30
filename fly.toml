@@ -1,0 +1,20 @@
+app = "taski-pe-os-narin"
+primary_region = "ams"
+
+[build]
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+  DATABASE_URL = "file:/app/apps/api/data/pe-os.db"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[mounts]]
+  source = "taski_data"
+  destination = "/app/apps/api/data"
