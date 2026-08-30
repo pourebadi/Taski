@@ -15,6 +15,7 @@ import { Button, Select, Space, Tooltip, App as AntApp } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import { options, priorityOptions } from '../lib/terms';
 import { faDigits } from '../lib/date';
 import DraggableCard from '../components/DraggableCard';
 import WorkItemCard from '../components/WorkItemCard';
@@ -23,7 +24,6 @@ import WorkItemDrawer from '../components/WorkItemDrawer';
 import type { WorkItem } from '../components/WorkItemCard';
 
 const COLUMNS = ['BACKLOG', 'READY', 'IN_PROGRESS', 'IN_REVIEW', 'IN_QA', 'DONE'] as const;
-const STREAMS = ['PRODUCT', 'TECH_DEBT', 'SUPPORT', 'INFRASTRUCTURE'];
 
 function Column({
   state,
@@ -150,7 +150,7 @@ export default function Board() {
             style={{ width: 148 }}
             value={filters.workStream}
             onChange={(workStream) => setFilters((f) => ({ ...f, workStream }))}
-            options={STREAMS.map((s) => ({ value: s, label: t(`stream.${s}`) }))}
+            options={options('stream')}
           />
           <Select
             allowClear
@@ -159,7 +159,7 @@ export default function Board() {
             style={{ width: 112 }}
             value={filters.priority}
             onChange={(priority) => setFilters((f) => ({ ...f, priority }))}
-            options={['P0', 'P1', 'P2', 'P3'].map((p) => ({ value: p, label: p }))}
+            options={priorityOptions()}
           />
           <Select
             allowClear

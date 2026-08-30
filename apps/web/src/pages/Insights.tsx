@@ -37,7 +37,7 @@ type Workload = { userId: string; fullName: string; capacityHours: number; openI
 
 const FIELD_LABEL: Record<string, string> = {
   PRIORITY: 'اولویت', DUE_DATE: 'مهلت', ASSIGNEE: 'مجری',
-  OWNER: 'مالک', CANCEL: 'لغو', REVIEWER: 'بازبین',
+  OWNER: 'مسئول', CANCEL: 'لغو', REVIEWER: 'تأییدکننده',
 };
 
 function Help({ k }: { k: string }) {
@@ -52,7 +52,7 @@ export default function Insights() {
   const role = useAuth((s) => s.user?.role);
   const canSeeTeam = ['ORG_OWNER', 'ADMIN', 'PROJECT_MANAGER', 'TEAM_LEAD'].includes(role ?? '');
 
-  const [tab, setTab] = useState<string>('سازمان');
+  const [tab, setTab] = useState<'org' | 'planning' | 'team'>('org');
   const [overview, setOverview] = useState<Overview | null>(null);
   const [stability, setStability] = useState<Stability>([]);
   const [reasons, setReasons] = useState<Reasons | null>(null);
@@ -110,12 +110,16 @@ export default function Insights() {
         </div>
         <Segmented
           value={tab}
-          onChange={(v) => setTab(String(v))}
-          options={canSeeTeam ? ['سازمان', 'برنامه‌ریزی', 'تیم'] : ['سازمان', 'برنامه‌ریزی']}
+          onChange={(v) => setTab(v as 'org' | 'planning' | 'team')}
+          options={[
+            { value: 'org', label: 'سازمان (Org)' },
+            { value: 'planning', label: 'برنامه‌ریزی (Planning)' },
+            ...(canSeeTeam ? [{ value: 'team', label: 'تیم (Team)' }] : []),
+          ]}
         />
       </div>
 
-      {tab === 'سازمان' && (
+      {tab === 'org' && (
         <>
           <div className="stat-grid" style={{ marginBottom: 16 }}>
             {[
@@ -228,7 +232,7 @@ export default function Insights() {
         </>
       )}
 
-      {tab === 'برنامه‌ریزی' && (
+      {tab === 'planning' && (
         <>
           <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
             <Col xs={12} md={6}>
@@ -338,7 +342,7 @@ export default function Insights() {
         </>
       )}
 
-      {tab === 'تیم' && canSeeTeam && (
+      {tab === 'team' && canSeeTeam && (
         <Card size="small" title="بار کاری اعضا">
           <Alert
             type="info"

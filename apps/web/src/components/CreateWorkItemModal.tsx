@@ -3,17 +3,8 @@ import { Checkbox, Form, Input, Modal, Select, App as AntApp } from 'antd';
 import JalaliDatePicker from './JalaliDatePicker';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import { options, priorityOptions, dual, PEOPLE_ROLES } from '../lib/terms';
 import FieldLabel from './FieldLabel';
-
-const STREAMS = ['PRODUCT', 'TECH_DEBT', 'SUPPORT', 'INFRASTRUCTURE'];
-const TYPES = [
-  { value: 'FEATURE', label: 'قابلیت' },
-  { value: 'BUG', label: 'باگ' },
-  { value: 'TASK', label: 'تسک' },
-  { value: 'SUPPORT', label: 'پشتیبانی' },
-  { value: 'TECH_DEBT', label: 'بدهی فنی' },
-  { value: 'INFRA', label: 'زیرساخت' },
-];
 
 export default function CreateWorkItemModal({
   open,
@@ -77,22 +68,22 @@ export default function CreateWorkItemModal({
           {/* خالی گذاشتن یعنی کار مستقل */}
           <Select allowClear placeholder={t('common.noProject')} options={projects.map((p) => ({ value: p.id, label: p.name }))} />
         </Form.Item>
-        <Form.Item name="workType" label={<FieldLabel label="نوع کار" helpKey="workType" />} rules={[{ required: true }]}>
-          <Select options={TYPES} />
+        <Form.Item name="workType" label={<FieldLabel label={dual('نوع کار', 'Type')} helpKey="workType" />} rules={[{ required: true }]}>
+          <Select options={options('workType')} />
         </Form.Item>
-        <Form.Item name="workStream" label={<FieldLabel label="جریان کاری" helpKey="workStream" />} rules={[{ required: true, message: 'بگو ظرفیت کجا خرج می‌شود؛ محصول، پشتیبانی، بدهی فنی یا زیرساخت.' }]}>
-          <Select options={STREAMS.map((s) => ({ value: s, label: t(`stream.${s}`) }))} />
+        <Form.Item name="workStream" label={<FieldLabel label={dual('جریان کاری', 'Stream')} helpKey="workStream" />} rules={[{ required: true, message: 'بگو ظرفیت کجا خرج می‌شود؛ محصول، پشتیبانی، بدهی فنی یا زیرساخت.' }]}>
+          <Select options={options('stream')} />
         </Form.Item>
-        <Form.Item name="priority" label={<FieldLabel label="اولویت" helpKey="priority" />} rules={[{ required: true }]}>
-          <Select options={['P0', 'P1', 'P2', 'P3'].map((p) => ({ value: p, label: p }))} />
+        <Form.Item name="priority" label={<FieldLabel label={dual('اولویت', 'Priority')} helpKey="priority" />} rules={[{ required: true }]}>
+          <Select options={priorityOptions()} />
         </Form.Item>
-        <Form.Item name="ownerId" label={<FieldLabel label="مالک" helpKey="owner" />} rules={[{ required: true, message: 'هر کاری باید یک نفر پاسخگو داشته باشد.' }]}>
+        <Form.Item name="ownerId" label={<FieldLabel label={dual(PEOPLE_ROLES.owner.fa, PEOPLE_ROLES.owner.en)} helpKey="owner" />} rules={[{ required: true, message: 'هر کاری باید یک نفر پاسخگو داشته باشد.' }]}>
           <Select options={users.map((u) => ({ value: u.id, label: u.fullName }))} />
         </Form.Item>
-        <Form.Item name="primaryAssigneeId" label={<FieldLabel label="مجری" helpKey="assignee" />}>
+        <Form.Item name="primaryAssigneeId" label={<FieldLabel label={dual(PEOPLE_ROLES.assignee.fa, PEOPLE_ROLES.assignee.en)} helpKey="assignee" />}>
           <Select allowClear options={users.map((u) => ({ value: u.id, label: u.fullName }))} />
         </Form.Item>
-        <Form.Item name="reviewerId" label={<FieldLabel label="بازبین" helpKey="reviewer" />}>
+        <Form.Item name="reviewerId" label={<FieldLabel label={dual(PEOPLE_ROLES.reviewer.fa, PEOPLE_ROLES.reviewer.en)} helpKey="reviewer" />}>
           <Select allowClear options={users.map((u) => ({ value: u.id, label: u.fullName }))} />
         </Form.Item>
         <Form.Item name="dueDate" label={<FieldLabel label="مهلت" helpKey="dueDate" />}>
@@ -103,7 +94,7 @@ export default function CreateWorkItemModal({
         </Form.Item>
         {/* بازبینی اختیاری است و سازنده تعیین می‌کند */}
         <Form.Item name="requiresReview" valuePropName="checked">
-          <Checkbox>این کار باید بازبینی شود <FieldLabel label="" helpKey="requiresReview" /></Checkbox>
+          <Checkbox>این کار باید پیش از پایان تأیید شود <FieldLabel label="" helpKey="requiresReview" /></Checkbox>
         </Form.Item>
         <Form.Item name="requiresQa" valuePropName="checked">
           <Checkbox>این کار باید تست شود <FieldLabel label="" helpKey="requiresQa" /></Checkbox>

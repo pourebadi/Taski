@@ -5,17 +5,8 @@ import dayjs from 'dayjs';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
 import { toJalali, faDigits } from '../lib/date';
+import { options } from '../lib/terms';
 import FieldLabel from './FieldLabel';
-
-const REASONS = [
-  'SCOPE_CHANGE',
-  'BLOCKER',
-  'DEPENDENCY',
-  'PRIORITY_CHANGE',
-  'SUPPORT_INTERRUPT',
-  'RE_ESTIMATION',
-  'EXTERNAL',
-];
 
 type Props = {
   open: boolean;
@@ -119,13 +110,7 @@ export default function CommitmentModal({ open, onClose, onSaved, item }: Props)
           label={<FieldLabel label={t('eta.confidence')} helpKey="etaConfidence" />}
           rules={[{ required: true, message: 'بگو چقدر مطمئنی. تاریخ بدون سطح اطمینان ثبت نمی‌شود.' }]}
         >
-          <Select
-            options={[
-              { value: 'HIGH', label: 'بالا' },
-              { value: 'MEDIUM', label: 'متوسط' },
-              { value: 'LOW', label: 'پایین' },
-            ]}
-          />
+          <Select options={options('confidence')} />
         </Form.Item>
 
         <Form.Item
@@ -133,7 +118,7 @@ export default function CommitmentModal({ open, onClose, onSaved, item }: Props)
           label={<FieldLabel label={t('eta.reason')} helpKey="reasonType" />}
           rules={[{ required: true, message: 'بدون علت نمی‌شود تاریخ را عوض کرد.' }]}
         >
-          <Select options={REASONS.map((r) => ({ value: r, label: t(`reason.${r}`) }))} />
+          <Select options={options('reason')} />
         </Form.Item>
 
         <Form.Item name="reasonText" label={<FieldLabel label="توضیح" helpKey="reasonText" />}>

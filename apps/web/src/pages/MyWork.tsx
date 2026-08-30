@@ -108,8 +108,8 @@ export default function MyWork() {
         />
         <Column
           title={t('myWork.awaitingReview')}
-          hint="کارهایی که منتظر بازبینی شما مانده‌اند."
-          emptyText="صف بازبینی شما خالی است."
+          hint="کارهایی که منتظر تأیید شما مانده‌اند."
+          emptyText="صف تأیید شما خالی است."
           items={data.awaitingMyReview}
           onOpen={setOpenId}
         />

@@ -4,20 +4,16 @@ import JalaliDatePicker from './JalaliDatePicker';
 import dayjs from 'dayjs';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import { options, priorityOptions, dual, PEOPLE_ROLES } from '../lib/terms';
 import FieldLabel from './FieldLabel';
-
-const REASONS = [
-  'SCOPE_CHANGE', 'BLOCKER', 'DEPENDENCY', 'PRIORITY_CHANGE',
-  'SUPPORT_INTERRUPT', 'RE_ESTIMATION', 'EXTERNAL',
-];
 
 export type TrackedChange = 'PRIORITY' | 'DUE_DATE' | 'ASSIGNEE' | 'OWNER' | 'CANCEL';
 
 const TITLES: Record<TrackedChange, string> = {
   PRIORITY: 'تغییر اولویت',
   DUE_DATE: 'تغییر مهلت',
-  ASSIGNEE: 'تغییر مجری',
-  OWNER: 'تغییر مالک',
+  ASSIGNEE: `تغییر ${PEOPLE_ROLES.assignee.fa}`,
+  OWNER: `تغییر ${PEOPLE_ROLES.owner.fa}`,
   CANCEL: 'لغو کار',
 };
 
@@ -25,7 +21,7 @@ const NOTES: Record<TrackedChange, string> = {
   PRIORITY: 'وقتی چیزی جلو می‌افتد، معمولاً چیز دیگری عقب می‌رود. اگر می‌دانی کدام، ثبتش کن.',
   DUE_DATE: 'مهلت یعنی «کِی لازم است». اگر خودت داری تخمینت را عوض می‌کنی، به‌جای این از «تغییر تعهد» استفاده کن.',
   ASSIGNEE: 'واگذاری کار به نفر دیگر معمولاً روی زمان تحویل اثر می‌گذارد.',
-  OWNER: 'مالک یعنی پاسخگوی نتیجه. عوض کردنش یعنی مسئولیت جابه‌جا شده.',
+  OWNER: `${PEOPLE_ROLES.owner.fa} یعنی پاسخگوی نتیجه. عوض کردنش یعنی مسئولیت جابه‌جا شده.`,
   CANCEL: 'کارهای لغوشده پاک نمی‌شوند؛ فقط از فهرست‌ها کنار می‌روند. بعداً می‌شود فهمید چرا رهایشان کردیم.',
 };
 
@@ -103,7 +99,7 @@ export default function TrackedChangeModal({
             label={<FieldLabel label="اولویت جدید" helpKey="priority" />}
             rules={[{ required: true }]}
           >
-            <Select options={['P0', 'P1', 'P2', 'P3'].map((p) => ({ value: p, label: p }))} />
+            <Select options={priorityOptions()} />
           </Form.Item>
         )}
 
@@ -118,7 +114,7 @@ export default function TrackedChangeModal({
         {(kind === 'ASSIGNEE' || kind === 'OWNER') && (
           <Form.Item
             name="userId"
-            label={<FieldLabel label={kind === 'OWNER' ? 'مالک جدید' : 'مجری جدید'} helpKey={kind === 'OWNER' ? 'owner' : 'assignee'} />}
+            label={<FieldLabel label={kind === 'OWNER' ? dual(`${PEOPLE_ROLES.owner.fa} جدید`, 'New owner') : dual(`${PEOPLE_ROLES.assignee.fa} جدید`, 'New assignee')} helpKey={kind === 'OWNER' ? 'owner' : 'assignee'} />}
             rules={[{ required: kind === 'OWNER', message: 'یک نفر را انتخاب کن.' }]}
           >
             <Select allowClear options={users.map((u) => ({ value: u.id, label: u.fullName }))} />
@@ -130,7 +126,7 @@ export default function TrackedChangeModal({
           label={<FieldLabel label="چرا؟" helpKey="reasonType" />}
           rules={[{ required: true, message: 'بدون علت ثبت نمی‌شود.' }]}
         >
-          <Select options={REASONS.map((r) => ({ value: r, label: t(`reason.${r}`) }))} />
+          <Select options={options('reason')} />
         </Form.Item>
 
         <Form.Item name="reasonText" label={<FieldLabel label="توضیح" helpKey="reasonText" />}>

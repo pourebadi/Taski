@@ -18,21 +18,12 @@ import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth-store';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import { label as termLabel } from '../lib/terms';
 import { useThemeMode } from '../theme/ThemeProvider';
 import CommandPalette from './CommandPalette';
 import WorkItemDrawer from './WorkItemDrawer';
 
 const { Header, Sider, Content } = Layout;
-
-const ROLE_LABEL: Record<string, string> = {
-  ORG_OWNER: 'مالک سازمان',
-  ADMIN: 'مدیر سیستم',
-  PROJECT_MANAGER: 'مدیر پروژه',
-  TEAM_LEAD: 'سرپرست تیم',
-  CONTRIBUTOR: 'عضو اجرایی',
-  REQUESTER: 'درخواست‌دهنده',
-  VIEWER: 'مشاهده‌گر',
-};
 
 const PAGE_TITLE: Record<string, string> = {
   '/my-work': 'کارهای من',
@@ -190,7 +181,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                         {user?.email}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--brand)', marginTop: 2 }}>
-                        {ROLE_LABEL[user?.role ?? ''] ?? user?.role}
+                        {termLabel('role', user?.role ?? '')}
                       </div>
                     </div>
                   ),

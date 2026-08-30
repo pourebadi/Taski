@@ -17,6 +17,7 @@ import {
 import { MoreOutlined, PlusOutlined } from '@ant-design/icons';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import { options } from '../lib/terms';
 import FieldLabel from '../components/FieldLabel';
 import { Pill } from '../components/Badges';
 import { faDigits } from '../lib/date';
@@ -31,16 +32,6 @@ type User = {
 };
 
 type Team = { id: string; name: string };
-
-const ROLE_LABEL: Record<string, string> = {
-  ORG_OWNER: 'مالک سازمان',
-  ADMIN: 'مدیر سیستم',
-  PROJECT_MANAGER: 'مدیر پروژه',
-  TEAM_LEAD: 'سرپرست تیم',
-  CONTRIBUTOR: 'عضو اجرایی',
-  REQUESTER: 'درخواست‌دهنده',
-  VIEWER: 'مشاهده‌گر',
-};
 
 const STATUS: Record<string, { label: string; tone: 'ok' | 'warn' | 'unknown' }> = {
   ACTIVE: { label: 'فعال', tone: 'ok' },
@@ -227,7 +218,7 @@ export default function Admin() {
                     style={{ width: 150 }}
                     aria-label={`نقش ${row.fullName}`}
                     onChange={(next) => changeRole(row.id, next)}
-                    options={Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))}
+                    options={options('role')}
                   />
                 ),
               },
@@ -347,7 +338,7 @@ export default function Admin() {
             rules={[{ required: true }]}
             initialValue="CONTRIBUTOR"
           >
-            <Select options={Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))} />
+            <Select options={options('role')} />
           </Form.Item>
           <Form.Item name="primaryTeamId" label={<FieldLabel label="تیم اصلی" helpKey="primaryTeam" />}>
             <Select allowClear options={teams.map((team) => ({ value: team.id, label: team.name }))} />

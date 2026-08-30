@@ -260,12 +260,12 @@ export default function Projects() {
           >
             <Input />
           </Form.Item>
-          <Form.Item name="ownerId" label={<FieldLabel label="مالک پروژه" helpKey="owner" />}>
+          <Form.Item name="ownerId" label={<FieldLabel label="مسئول پروژه" helpKey="owner" />}>
             <Select
               allowClear
               showSearch
               optionFilterProp="label"
-              placeholder="اگر خالی بماند، خودتان مالک می‌شوید"
+              placeholder="اگر خالی بماند، خودتان مسئول می‌شوید"
               options={users.map((u) => ({ value: u.id, label: u.fullName }))}
             />
           </Form.Item>

@@ -4,6 +4,7 @@ import { Button, Input, Select, Space, Table, Tooltip, Typography } from 'antd';
 import { SearchOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import { options, priorityOptions } from '../lib/terms';
 import { toJalali, faDigits } from '../lib/date';
 import WorkItemDrawer from '../components/WorkItemDrawer';
 import CreateWorkItemModal from '../components/CreateWorkItemModal';
@@ -109,7 +110,7 @@ export default function WorkList() {
             disabled={searching}
             value={priority}
             onChange={setPriority}
-            options={['P0', 'P1', 'P2', 'P3'].map((p) => ({ value: p, label: p }))}
+            options={priorityOptions()}
           />
           <Select
             allowClear
@@ -119,10 +120,7 @@ export default function WorkList() {
             disabled={searching}
             value={health}
             onChange={setHealth}
-            options={['ON_TRACK', 'AT_RISK', 'BLOCKED', 'UNKNOWN'].map((h) => ({
-              value: h,
-              label: t(`health.${h}`),
-            }))}
+            options={options('health')}
           />
           <Tooltip title="بارگذاری دوباره">
             <Button icon={<ReloadOutlined />} onClick={load} aria-label="بارگذاری دوباره" />

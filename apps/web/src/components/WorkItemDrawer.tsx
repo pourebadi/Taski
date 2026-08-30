@@ -18,6 +18,7 @@ import {
 } from 'antd';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import { options, labelDual } from '../lib/terms';
 import { toJalali, faDigits } from '../lib/date';
 import CommitmentModal from './CommitmentModal';
 import TrackedChangeModal, { TrackedChange } from './TrackedChangeModal';
@@ -85,8 +86,8 @@ const FIELD_LABEL: Record<string, string> = {
   PRIORITY: 'اولویت',
   DUE_DATE: 'مهلت',
   ASSIGNEE: 'مجری',
-  OWNER: 'مالک',
-  REVIEWER: 'بازبین',
+  OWNER: 'مسئول',
+  REVIEWER: 'تأییدکننده',
   CANCEL: 'لغو کار',
 };
 
@@ -97,7 +98,7 @@ const ACTION_LABEL: Record<string, string> = {
   ETA_CHANGED: 'تاریخ تحویل عوض شد',
   PRIORITY_CHANGED: 'اولویت عوض شد',
   ASSIGNEE_CHANGED: 'مجری عوض شد',
-  OWNER_CHANGED: 'مالک عوض شد',
+  OWNER_CHANGED: 'مسئول عوض شد',
   DUE_DATE_CHANGED: 'مهلت عوض شد',
 };
 
@@ -249,8 +250,8 @@ export default function WorkItemDrawer({
           aria-label="تغییر مرحله"
           onChange={changeState}
           options={[
-            { value: item.workflowState, label: `${t(`state.${item.workflowState}`)} (فعلی)`, disabled: true },
-            ...nextStates.map((s) => ({ value: s, label: t(`state.${s}`) })),
+            { value: item.workflowState, label: `${labelDual('state', item.workflowState)} (فعلی)`, disabled: true },
+            ...nextStates.map((s) => ({ value: s, label: labelDual('state', s) })),
           ]}
         />
         <Button type="primary" onClick={() => setEtaOpen(true)}>
@@ -311,10 +312,7 @@ export default function WorkItemDrawer({
             style={{ width: 140 }}
             aria-label="تغییر سلامت تحویل"
             onChange={changeHealth}
-            options={['ON_TRACK', 'AT_RISK', 'BLOCKED', 'UNKNOWN'].map((h) => ({
-              value: h,
-              label: t(`health.${h}`),
-            }))}
+            options={options('health')}
           />
         </Descriptions.Item>
         <Descriptions.Item label="اولویت">
@@ -333,7 +331,7 @@ export default function WorkItemDrawer({
         <Descriptions.Item label={t('eta.estimateHours')}>
           {item.estimateHours ? faDigits(item.estimateHours) : '—'}
         </Descriptions.Item>
-        <Descriptions.Item label={<FieldLabel label="نیاز به بازبینی" helpKey="requiresReview" />}>
+        <Descriptions.Item label={<FieldLabel label="نیاز به تأیید" helpKey="requiresReview" />}>
           {item.requiresReview ? 'بله' : 'خیر'}
         </Descriptions.Item>
         <Descriptions.Item label={<FieldLabel label="نیاز به تست" helpKey="requiresQa" />}>
