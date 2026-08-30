@@ -63,9 +63,9 @@ function wrap(handler, permission) {
 }
 
 app.post('/api/v1/auth/login', async (req, res) => {
-  const user = await prisma.user.findUnique({ where: { email: String(req.body.email || '').toLowerCase() } });
+  const user = await prisma.user.findUnique({ where: { username: String(req.body.username || '').toLowerCase() } });
   if (!user || !(await bcrypt.compare(req.body.password || '', user.passwordHash))) {
-    return res.status(401).json({ code: 'INVALID_CREDENTIALS', message: 'ایمیل یا رمز عبور نادرست است.' });
+    return res.status(401).json({ code: 'INVALID_CREDENTIALS', message: 'نام‌کاربری یا رمز عبور نادرست است.' });
   }
   if (user.status !== 'ACTIVE') {
     return res.status(403).json({ code: 'USER_INACTIVE', message: 'حساب شما فعال نیست.' });
@@ -74,7 +74,7 @@ app.post('/api/v1/auth/login', async (req, res) => {
   tokens.set(token, { id: user.id, role: user.role, organizationId: user.organizationId });
   res.json({
     accessToken: token,
-    user: { id: user.id, fullName: user.fullName, email: user.email, role: user.role, mustChangePassword: false },
+    user: { id: user.id, fullName: user.fullName, username: user.username, role: user.role, mustChangePassword: false },
   });
 });
 

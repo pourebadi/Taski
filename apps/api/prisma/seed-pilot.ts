@@ -18,7 +18,7 @@ const TEAMS = ['Backend', 'Frontend', 'Marketing & Growth', 'Design & Content'];
 
 type Member = {
   fullName: string;
-  email: string;
+  username: string;
   jobTitle: string;
   role: string;
   team: string;
@@ -26,11 +26,11 @@ type Member = {
 };
 
 const MEMBERS: Member[] = [
-  { fullName: 'خانم ترابی', email: 'torabi@iranpeymex.local', jobTitle: 'هد بک‌اند', role: 'TEAM_LEAD', team: 'Backend', capacity: 30 },
-  { fullName: 'آقای گلی', email: 'goli@iranpeymex.local', jobTitle: 'کارشناس بک‌اند', role: 'CONTRIBUTOR', team: 'Backend', capacity: 36 },
-  { fullName: 'آقای دلیری', email: 'daliri@iranpeymex.local', jobTitle: 'هد فرانت', role: 'TEAM_LEAD', team: 'Frontend', capacity: 30 },
-  { fullName: 'آقای میلاد نیکروان', email: 'nikravan@iranpeymex.local', jobTitle: 'ارشد بازاریابی', role: 'CONTRIBUTOR', team: 'Marketing & Growth', capacity: 32 },
-  { fullName: 'خانم مقدم', email: 'moghadam@iranpeymex.local', jobTitle: 'دیزاینر و تولید محتوا', role: 'CONTRIBUTOR', team: 'Design & Content', capacity: 32 },
+  { fullName: 'خانم ترابی', username: 'torabi', jobTitle: 'هد بک‌اند', role: 'TEAM_LEAD', team: 'Backend', capacity: 30 },
+  { fullName: 'آقای گلی', username: 'goli', jobTitle: 'کارشناس بک‌اند', role: 'CONTRIBUTOR', team: 'Backend', capacity: 36 },
+  { fullName: 'آقای دلیری', username: 'daliri', jobTitle: 'هد فرانت', role: 'TEAM_LEAD', team: 'Frontend', capacity: 30 },
+  { fullName: 'آقای میلاد نیکروان', username: 'nikravan', jobTitle: 'ارشد بازاریابی', role: 'CONTRIBUTOR', team: 'Marketing & Growth', capacity: 32 },
+  { fullName: 'خانم مقدم', username: 'moghadam', jobTitle: 'دیزاینر و تولید محتوا', role: 'CONTRIBUTOR', team: 'Design & Content', capacity: 32 },
 ];
 
 /** رمز خوانا ولی قوی: قابل خواندن روی تلفن، بدون کاراکتر گیج‌کننده */
@@ -53,7 +53,7 @@ const ROLE_FA: Record<string, string> = {
 };
 
 async function main() {
-  const created: { name: string; email: string; password: string; role: string; job: string; team: string }[] = [];
+  const created: { name: string; username: string; password: string; role: string; job: string; team: string }[] = [];
 
   await prisma.organization.upsert({
     where: { id: ORG_ID },
@@ -76,8 +76,8 @@ async function main() {
   }
 
   // ادمین اصلی
-  const adminEmail = (process.env.ADMIN_EMAIL ?? 'admin@iranpeymex.local').toLowerCase();
-  let admin = await prisma.user.findUnique({ where: { email: adminEmail } });
+  const adminUsername = (process.env.ADMIN_USERNAME ?? 'admin').toLowerCase();
+  let admin = await prisma.user.findUnique({ where: { username: adminUsername } });
   if (!admin) {
     const password = process.env.ADMIN_PASSWORD ?? makePassword();
     admin = await prisma.user.create({
@@ -85,8 +85,7 @@ async function main() {
         id: randomUUID(),
         organizationId: ORG_ID,
         fullName: process.env.ADMIN_NAME ?? 'مدیر سیستم',
-        username: (process.env.ADMIN_USERNAME ?? adminEmail.split('@')[0]).toLowerCase(),
-        email: adminEmail,
+        username: adminUsername,
         passwordHash: await bcrypt.hash(password, 10),
         jobTitle: 'مدیرعامل',
         role: 'ORG_OWNER',
@@ -95,22 +94,21 @@ async function main() {
         weeklyCapacityHours: 20,
       },
     });
-    created.push({ name: admin.fullName, email: adminEmail, password, role: 'ORG_OWNER', job: 'مدیرعامل', team: '—' });
+    created.push({ name: admin.fullName, username: adminUsername, password, role: 'ORG_OWNER', job: 'مدیرعامل', team: '—' });
   } else {
     console.log('ادمین از قبل وجود دارد؛ رمزش دست نخورد.');
   }
 
   // مدیر پشتیبان — قانون «حداقل دو مدیر»
-  const backupEmail = 'admin2@iranpeymex.local';
-  if (!(await prisma.user.findUnique({ where: { email: backupEmail } }))) {
+  const backupUsername = 'admin2';
+  if (!(await prisma.user.findUnique({ where: { username: backupUsername } }))) {
     const password = makePassword();
     const backup = await prisma.user.create({
       data: {
         id: randomUUID(),
         organizationId: ORG_ID,
         fullName: 'مدیر پشتیبان',
-        username: 'admin2',
-        email: backupEmail,
+        username: backupUsername,
         passwordHash: await bcrypt.hash(password, 10),
         jobTitle: 'مدیر پشتیبان سیستم',
         role: 'ADMIN',
@@ -119,12 +117,12 @@ async function main() {
         weeklyCapacityHours: 10,
       },
     });
-    created.push({ name: backup.fullName, email: backupEmail, password, role: 'ADMIN', job: 'مدیر پشتیبان سیستم', team: '—' });
+    created.push({ name: backup.fullName, username: backupUsername, password, role: 'ADMIN', job: 'مدیر پشتیبان سیستم', team: '—' });
   }
 
   // اعضای تیم
   for (const m of MEMBERS) {
-    if (await prisma.user.findUnique({ where: { email: m.email } })) {
+    if (await prisma.user.findUnique({ where: { username: m.username } })) {
       console.log(`${m.fullName} از قبل وجود دارد؛ رد شد.`);
       continue;
     }
@@ -134,8 +132,7 @@ async function main() {
         id: randomUUID(),
         organizationId: ORG_ID,
         fullName: m.fullName,
-        username: m.email.split('@')[0].toLowerCase(),
-        email: m.email,
+        username: m.username,
         passwordHash: await bcrypt.hash(password, 10),
         jobTitle: m.jobTitle,
         role: m.role,
@@ -146,7 +143,7 @@ async function main() {
       },
     });
     await prisma.teamMember.create({ data: { id: randomUUID(), teamId: teamIds[m.team], userId: user.id } });
-    created.push({ name: m.fullName, email: m.email, password, role: m.role, job: m.jobTitle, team: m.team });
+    created.push({ name: m.fullName, username: m.username, password, role: m.role, job: m.jobTitle, team: m.team });
 
     if (m.role === 'TEAM_LEAD') {
       await prisma.team.update({ where: { id: teamIds[m.team] }, data: { leadId: user.id } });
@@ -155,7 +152,7 @@ async function main() {
 
   // پروژه اصلی
   if (!(await prisma.project.findFirst({ where: { organizationId: ORG_ID, key: 'IPX' } }))) {
-    const owner = await prisma.user.findUnique({ where: { email: 'torabi@iranpeymex.local' } });
+    const owner = await prisma.user.findUnique({ where: { username: 'torabi' } });
     const project = await prisma.project.create({
       data: {
         id: randomUUID(),
@@ -186,7 +183,7 @@ async function main() {
   console.log('این فایل را بعد از تحویل رمزها پاک کن. در .gitignore هست و commit نمی‌شود.');
 }
 
-function buildCredentialsFile(rows: { name: string; email: string; password: string; role: string; job: string; team: string }[]) {
+function buildCredentialsFile(rows: { name: string; username: string; password: string; role: string; job: string; team: string }[]) {
   const date = new Date().toISOString().slice(0, 10);
   const lines = rows
     .map(
@@ -194,7 +191,7 @@ function buildCredentialsFile(rows: { name: string; email: string; password: str
 
 | | |
 |---|---|
-| **ایمیل** | \`${r.email}\` |
+| **نام‌کاربری** | \`${r.username}\` |
 | **رمز** | \`${r.password}\` |
 | سمت سازمانی | ${r.job} |
 | نقش نرم‌افزاری | ${ROLE_FA[r.role] ?? r.role} |
@@ -222,7 +219,7 @@ ${lines}
 اگر خود ادمین قفل شد، از ترمینال سرور:
 
 \`\`\`bash
-npm run admin:reset-password -- --email=admin@iranpeymex.local
+npm run admin:reset-password -- --username=admin
 \`\`\`
 
 ## چرا دو مدیر داریم؟

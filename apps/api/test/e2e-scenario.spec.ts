@@ -63,7 +63,6 @@ beforeAll(async () => {
       organizationId: ORG,
       fullName: 'مدیر سیستم',
       username: 'admin',
-      email: 'admin@iranpeymex.local',
       passwordHash: await bcrypt.hash('Admin-Strong-1', 10),
       role: 'ORG_OWNER',
       status: 'ACTIVE',
@@ -106,7 +105,6 @@ describe('۲) ساخت اعضای واقعی تیم', () => {
       const res = await users.create(admin, {
         fullName: p.fullName,
         username: `user${i + 1}`,
-        email: `user${i + 1}@iranpeymex.local`,
         jobTitle: p.jobTitle,
         role: p.role as any,
         primaryTeamId: created[`team:${p.team}`],
@@ -134,9 +132,9 @@ describe('۲) ساخت اعضای واقعی تیم', () => {
     expect(members.every((u: any) => u.mustChangePassword)).toBe(true);
   });
 
-  it('ایمیل تکراری رد می‌شود', async () => {
+  it('نام‌کاربری تکراری رد می‌شود', async () => {
     await expect(
-      users.create(admin, { fullName: 'تکراری', username: 'user1', email: 'user1@iranpeymex.local', role: 'VIEWER' }),
+      users.create(admin, { fullName: 'تکراری', username: 'user1', role: 'VIEWER' }),
     ).rejects.toThrow(/از قبل وجود دارد/);
   });
 

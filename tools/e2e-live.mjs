@@ -10,7 +10,7 @@
  *
  *  اجرا:
  *      node e2e-live.mjs
- *      node e2e-live.mjs --base=https://taski.fly.dev --email=... --password=...
+ *      node e2e-live.mjs --base=https://taski.fly.dev --username=... --password=...
  *      node e2e-live.mjs --read-only        فقط می‌خواند، چیزی نمی‌سازد
  *
  *  ⚠ هشدار مهم
@@ -28,7 +28,7 @@ const args = Object.fromEntries(
 );
 
 const BASE = (args.base || 'https://taski.fly.dev').replace(/\/$/, '');
-const EMAIL = args.email || 'test@test.com';
+const USERNAME = args.username || 'admin';
 const PASSWORD = args.password || 'LWwDJM8NwzcA1';
 const READ_ONLY = !!args['read-only'];
 const API = `${BASE}/api/v1`;
@@ -157,10 +157,10 @@ async function scenarioHealthAndAuth() {
     expectStatus(noCookie, 401, 'POST /auth/refresh بدون کوکی → ۴۰۱');
   }
 
-  const badPass = await post('/auth/login', { email: EMAIL, password: 'definitely-wrong' }, { noAuth: true });
+  const badPass = await post('/auth/login', { username: USERNAME, password: 'definitely-wrong' }, { noAuth: true });
   expectStatus(badPass, 401, 'رمز غلط → ۴۰۱');
 
-  const noUser = await post('/auth/login', { email: `ghost-${STAMP}@nowhere.test`, password: 'x' }, { noAuth: true });
+  const noUser = await post('/auth/login', { username: `ghost-${STAMP}`, password: 'x' }, { noAuth: true });
   if (noUser.body?.message && badPass.body?.message && noUser.body.message !== badPass.body.message) {
     bug('پیام خطای ورود وجود حساب را لو می‌دهد', 'کاربر ناموجود و رمز غلط پیام یکسان نمی‌دهند');
   } else {
@@ -170,7 +170,7 @@ async function scenarioHealthAndAuth() {
   const empty = await post('/auth/login', {}, { noAuth: true });
   expectNot500(empty, 'ورود با بدنه‌ی خالی ۵۰۰ نمی‌دهد');
 
-  const login = await post('/auth/login', { email: EMAIL, password: PASSWORD }, { noAuth: true });
+  const login = await post('/auth/login', { username: USERNAME, password: PASSWORD }, { noAuth: true });
   if (!expectStatus(login, 200, 'ورود با اطلاعات درست')) {
     console.log(`\n${C.red}بدون ورود موفق ادامه ممکن نیست. اطلاعات ورود را بررسی کنید.${C.reset}\n`);
     process.exit(1);
@@ -217,8 +217,8 @@ async function scenarioValidation() {
     ['POST /projects با کلید غیرمجاز', () => post('/projects', { key: '۱۲۳!!', name: 'x' })],
     ['POST /teams بدون name', () => post('/teams', {})],
     ['POST /users بدون هیچ فیلدی', () => post('/users', {})],
-    ['POST /users با ایمیل بی‌معنا', () => post('/users', { fullName: 'x', email: 'not-an-email', role: 'CONTRIBUTOR' })],
-    ['POST /users با نقش نامعتبر', () => post('/users', { fullName: 'x', email: `a${STAMP}@t.local`, role: 'GOD_MODE' })],
+    ['POST /users با نام‌کاربری بی‌معنا', () => post('/users', { fullName: 'x', username: '@!', role: 'CONTRIBUTOR' })],
+    ['POST /users با نقش نامعتبر', () => post('/users', { fullName: 'x', username: `a${STAMP}`, role: 'GOD_MODE' })],
     ['POST /work-items بدون هیچ فیلدی', () => post('/work-items', {})],
     ['POST /work-items با اولویت بی‌معنا', () =>
       post('/work-items', { title: 'x', workType: 'TASK', workStream: 'PRODUCT', priority: 'SUPER_URGENT', ownerId: made.me.id })],
@@ -308,10 +308,10 @@ async function scenarioBuildWorld() {
     ['REQUESTER', 'درخواست‌دهنده'],
   ];
   for (const [role, label] of roster) {
-    const email = `e2e.${role.toLowerCase()}.${STAMP}@taski.local`;
+    const username = `e2e.${role.toLowerCase()}.${STAMP}`;
     const res = await post('/users', {
       fullName: `[E2E] ${label}`,
-      email,
+      username,
       jobTitle: 'حساب تست',
       role,
       primaryTeamId: made.teams.main ?? undefined,
@@ -321,17 +321,17 @@ async function scenarioBuildWorld() {
       break;
     }
     if (expectStatus(res, [200, 201], `ساخت کاربر با نقش ${role}`)) {
-      made.users[role] = { id: res.body.id, email, password: res.body.temporaryPassword };
+      made.users[role] = { id: res.body.id, username, password: res.body.temporaryPassword };
       if (!res.body.temporaryPassword) warn(`کاربر ${role}`, 'رمز موقت برنگشت');
     }
   }
 
   const anyUser = Object.values(made.users)[0];
   if (anyUser) {
-    const dupEmail = await post('/users', {
-      fullName: 'تکراری', email: anyUser.email, role: 'CONTRIBUTOR',
+    const dupUsername = await post('/users', {
+      fullName: 'تکراری', username: anyUser.username, role: 'CONTRIBUTOR',
     });
-    expectStatus(dupEmail, 409, 'ایمیل تکراری → ۴۰۹');
+    expectStatus(dupUsername, 409, 'نام‌کاربری تکراری → ۴۰۹');
   }
 
   // عضویت در پروژه
@@ -739,7 +739,7 @@ async function scenarioPermissions() {
   // ورود با حساب مشاهده‌گر
   accessToken = null;
   cookieJar = '';
-  const login = await post('/auth/login', { email: viewer.email, password: viewer.password }, { noAuth: true });
+  const login = await post('/auth/login', { username: viewer.username, password: viewer.password }, { noAuth: true });
 
   if (login.status !== 200) {
     warn('ورود با حساب مشاهده‌گر ناموفق', `${login.status} — ${login.body?.message ?? ''}`);
@@ -750,7 +750,7 @@ async function scenarioPermissions() {
     else bug('کاربر تازه mustChangePassword ندارد');
 
     const forbidden = [
-      ['POST /users', () => post('/users', { fullName: 'x', email: `nope${STAMP}@t.local`, role: 'ADMIN' })],
+      ['POST /users', () => post('/users', { fullName: 'x', username: `nope${STAMP}`, role: 'ADMIN' })],
       ['POST /projects', () => post('/projects', { key: 'NOPE', name: 'x' })],
       ['POST /work-items', () => post('/work-items', { title: 'x', workType: 'TASK', workStream: 'PRODUCT', priority: 'P2', ownerId: viewer.id })],
       ['POST /teams', () => post('/teams', { name: 'x' })],
@@ -909,7 +909,7 @@ function report() {
 (async () => {
   console.log(`${C.bold}Taski — تست سناریوهای واقعی${C.reset}`);
   console.log(`${C.dim}هدف: ${BASE}${C.reset}`);
-  console.log(`${C.dim}حساب: ${EMAIL}${C.reset}`);
+  console.log(`${C.dim}حساب: ${USERNAME}${C.reset}`);
   if (READ_ONLY) console.log(`${C.yellow}حالت read-only — هیچ داده‌ای ساخته نمی‌شود${C.reset}`);
   else console.log(`${C.yellow}⚠ این اجرا داده‌ی واقعی می‌سازد و این محصول مسیر حذف ندارد.${C.reset}`);
 

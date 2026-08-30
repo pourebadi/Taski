@@ -27,7 +27,6 @@ type User = {
   id: string;
   fullName: string;
   username?: string | null;
-  email: string;
   jobTitle?: string | null;
   role: string;
   status: string;
@@ -208,7 +207,7 @@ export default function Admin() {
                   <div>
                     <div style={{ fontWeight: 500 }}>{v}</div>
                     <div style={{ fontSize: 11.5, color: 'var(--text-faint)', direction: 'ltr', textAlign: 'start' }}>
-                      @{row.username ?? row.email}
+                      @{row.username}
                     </div>
                   </div>
                 ),
@@ -367,9 +366,6 @@ export default function Admin() {
             ]}
           >
             <Input dir="ltr" placeholder="ali" />
-          </Form.Item>
-          <Form.Item name="email" label={<>{t('auth.email')} <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>(اختیاری)</span></>}>
-            <Input dir="ltr" />
           </Form.Item>
           <Form.Item name="jobTitle" label={<FieldLabel label="سمت سازمانی" helpKey="jobTitle" />}>
             <Input placeholder="مثلاً هد بک‌اند" />

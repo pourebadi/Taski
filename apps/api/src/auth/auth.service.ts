@@ -4,6 +4,7 @@ import { randomUUID, createHash } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppError } from '../common/errors';
+import { parseOrThrow, RegisterSchema } from '../common/validation';
 
 const GENERIC_LOGIN_ERROR = 'نام‌کاربری یا رمز عبور نادرست است.';
 
@@ -54,7 +55,63 @@ export class AuthService {
         id: user.id,
         fullName: user.fullName,
         username: user.username,
-        email: user.email,
+        role: user.role,
+        mustChangePassword: user.mustChangePassword,
+      },
+    };
+  }
+
+  async register(fullName: string, username: string, password: string, userAgent?: string) {
+    const input = parseOrThrow(RegisterSchema, { fullName, username, password });
+
+    const existing = await this.prisma.user.findUnique({ where: { username: input.username } });
+    if (existing) {
+      throw new AppError(409, 'USERNAME_TAKEN', 'کاربری با این نام‌کاربری از قبل وجود دارد.');
+    }
+
+    const org = await this.prisma.organization.findFirst();
+    if (!org) throw new AppError(500, 'NO_ORG', 'سازمانی تعریف نشده است.');
+
+    const userId = randomUUID();
+    const user = await this.prisma.user.create({
+      data: {
+        id: userId,
+        organizationId: org.id,
+        fullName: input.fullName.trim(),
+        username: input.username,
+        passwordHash: await bcrypt.hash(input.password, 10),
+        role: 'VIEWER',
+        status: 'ACTIVE',
+        mustChangePassword: false,
+      },
+    });
+
+    const accessToken = await this.jwt.signAsync(
+      { sub: user.id, role: user.role, org: user.organizationId },
+      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: (process.env.ACCESS_TOKEN_TTL ?? '15m') as any },
+    );
+
+    const refreshToken = randomUUID() + randomUUID();
+    const days = Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 14);
+    await this.prisma.session.create({
+      data: {
+        id: randomUUID(),
+        userId: user.id,
+        refreshTokenHash: this.hashToken(refreshToken),
+        userAgent: userAgent ?? null,
+        expiresAt: new Date(Date.now() + days * 86400_000),
+      },
+    });
+
+    await this.audit(user.id, 'REGISTER_SUCCESS');
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        username: user.username,
         role: user.role,
         mustChangePassword: user.mustChangePassword,
       },
@@ -87,7 +144,6 @@ export class AuthService {
         id: session.user.id,
         fullName: session.user.fullName,
         username: session.user.username,
-        email: session.user.email,
         role: session.user.role,
         mustChangePassword: session.user.mustChangePassword,
       },
@@ -144,7 +200,6 @@ export class AuthService {
       id: user.id,
       fullName: user.fullName,
       username: user.username,
-      email: user.email,
       role: user.role,
       mustChangePassword: user.mustChangePassword,
     };

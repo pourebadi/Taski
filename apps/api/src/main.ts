@@ -13,8 +13,8 @@ async function bootstrap() {
 
   // در production رمز پیش‌فرض ممنوع است. (PM-A1)
   if (process.env.NODE_ENV === 'production') {
-    if (!process.env.ADMIN_EMAIL || !process.env.ADMIN_PASSWORD) {
-      throw new Error('ADMIN_EMAIL و ADMIN_PASSWORD در محیط production اجباری است.');
+    if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {
+      throw new Error('ADMIN_USERNAME و ADMIN_PASSWORD در محیط production اجباری است.');
     }
     if (process.env.ADMIN_PASSWORD === 'Admin12345!') {
       throw new Error('رمز پیش‌فرض در محیط production مجاز نیست. برنامه متوقف شد.');

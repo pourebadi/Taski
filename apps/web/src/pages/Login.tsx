@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Alert, Button, Form, Input, Typography } from 'antd';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth-store';
 import { t } from '../lib/i18n';
@@ -66,7 +67,7 @@ export default function Login() {
         </Form>
 
         <p style={{ color: 'var(--text-faint)', fontSize: 12, margin: '18px 0 0', textAlign: 'center' }}>
-          حساب کاربری را مدیر سیستم می‌سازد. ثبت‌نام عمومی وجود ندارد.
+          {t('auth.noAccount')} <Link to="/register">{t('auth.register')}</Link>
         </p>
       </div>
     </main>

@@ -69,7 +69,7 @@ const WORK_ITEM = {
 };
 
 const ROUTES: Record<string, unknown> = {
-  '/users': [{ id: 'u1', fullName: 'کاربر یک', email: 'a@b.c', role: 'ADMIN', status: 'ACTIVE' }],
+  '/users': [{ id: 'u1', fullName: 'کاربر یک', username: 'user1', role: 'ADMIN', status: 'ACTIVE' }],
   '/teams': [{ id: 't1', name: 'تیم یک' }],
   '/projects': [
     { id: 'p1', key: 'BE', name: 'پروژه یک', status: 'ACTIVE', targetDate: '2026-10-01T00:00:00.000Z', description: 'x' },
@@ -138,7 +138,7 @@ beforeEach(() => {
 
   useAuth.setState({
     accessToken: 'fake-token',
-    user: { id: 'u1', fullName: 'کاربر یک', email: 'a@b.c', role: 'ADMIN', mustChangePassword: false },
+    user: { id: 'u1', fullName: 'کاربر یک', username: 'user1', role: 'ADMIN', mustChangePassword: false },
   });
 
   vi.stubGlobal('fetch', async (url: string) => {
