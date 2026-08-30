@@ -10,11 +10,14 @@ import {
   MenuOutlined,
   LogoutOutlined,
   KeyOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth-store';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import CommandPalette from './CommandPalette';
+import WorkItemDrawer from './WorkItemDrawer';
 
 const { Header, Sider, Content } = Layout;
 
@@ -43,6 +46,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { user, clear } = useAuth();
   const screens = Grid.useBreakpoint();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // کار باز شده در URL نگه داشته می‌شود تا لینکش قابل اشتراک باشد
+  const [params, setParams] = useSearchParams();
+  const openItem = params.get('item');
+
+  const showItem = (id: string) => {
+    const next = new URLSearchParams(params);
+    next.set('item', id);
+    setParams(next);
+  };
+
+  const closeItem = () => {
+    const next = new URLSearchParams(params);
+    next.delete('item');
+    setParams(next, { replace: true });
+  };
 
   const isDesktop = !!screens.lg;
 
@@ -133,6 +151,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           <span style={{ flex: 1 }} />
 
+          <Button
+            type="text"
+            onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+            aria-label="جست‌وجوی سریع"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <SearchOutlined aria-hidden="true" />
+            {isDesktop && (
+              <span style={{ marginInlineStart: 6, fontSize: 12 }}>
+                جست‌وجو <kbd className="kbd">Ctrl K</kbd>
+              </span>
+            )}
+          </Button>
+
           <Dropdown
             trigger={['click']}
             menu={{
@@ -177,6 +209,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             {children}
           </main>
         </Content>
+
+        <CommandPalette onOpenItem={showItem} />
+        <WorkItemDrawer
+          id={openItem}
+          open={!!openItem}
+          onClose={closeItem}
+          onChanged={() => window.dispatchEvent(new CustomEvent('taski:refresh'))}
+        />
       </Layout>
     </Layout>
   );

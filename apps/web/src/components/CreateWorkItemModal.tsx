@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Checkbox, Form, Input, Modal, Select, App as AntApp } from 'antd';
-import { DatePicker } from 'antd-jalali-plus';
+import JalaliDatePicker from './JalaliDatePicker';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
 import FieldLabel from './FieldLabel';
@@ -96,7 +96,7 @@ export default function CreateWorkItemModal({
           <Select allowClear options={users.map((u) => ({ value: u.id, label: u.fullName }))} />
         </Form.Item>
         <Form.Item name="dueDate" label={<FieldLabel label="مهلت" helpKey="dueDate" />}>
-          <DatePicker style={{ width: '100%' }} />
+          <JalaliDatePicker style={{ width: '100%' }} />
         </Form.Item>
         <Form.Item name="acceptanceCriteria" label={<FieldLabel label="معیار پذیرش" helpKey="acceptanceCriteria" />}>
           <Input.TextArea rows={2} />

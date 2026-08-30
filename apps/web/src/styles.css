@@ -25,41 +25,54 @@
    هیچ رنگ خامی نباید مستقیم در کامپوننت نوشته شود.
    ─────────────────────────────────────────────────────────────── */
 :root {
-  --ink: #101917;
+  color-scheme: light;
+
+  /* ── سطوح ──
+     تفکیک بوم از کارت قبلاً ۱.۰۷:۱ بود، یعنی روی مانیتور معمولی
+     ستون‌های بورد و مرز بخش‌ها اصلاً دیده نمی‌شدند. */
+  --ink: #0d1614;
   --surface: #ffffff;
-  --canvas: #f6f8f7;
-  --line: #e3e8e6;
-  --line-strong: #cdd6d3;
+  --surface-sunken: #f2f5f4;
+  --canvas: #e9edec;
+  --line: #76867f;        /* ۳.۸۳:۱ روی سفید و ۳.۲۴:۱ روی بوم — هر دو پاس */
+  --line-soft: #c9d3cf;   /* فقط برای جداکننده‌های داخلی کم‌اهمیت */
+  --line-strong: #5f6e69;
 
-  --text: #16211e;
-  --text-muted: #5c6b66;
-  --text-faint: #8a9793;
+  /* ── متن ── همه بالای ۴.۵:۱ روی هر دو سطح */
+  --text: #1a2724;
+  --text-muted: #4c5b56;
+  --text-faint: #5f6e69;
+  --text-invert: #f2f6f5;
 
-  --brand: #14675a;
-  --brand-hover: #10554a;
-  --brand-soft: #e7f1ee;
-  --brand-line: #b9d5cd;
+  /* ── برند ── */
+  --brand: #0f5a4e;
+  --brand-hover: #0b4740;
+  --brand-soft: #dfeeea;
+  --brand-line: #7fada2;
+  --focus: #0a6b8f;       /* آبی، تا با سبزِ «سالم» اشتباه نشود */
 
-  --ok: #17795e;
-  --ok-soft: #e6f4ef;
-  --warn: #a35a06;
-  --warn-soft: #fdf1e1;
-  --danger: #b42318;
-  --danger-soft: #fdeceb;
-  --unknown: #6b7a76;
-  --unknown-soft: #eef1f0;
+  /* ── سیگنال‌ها ── */
+  --ok: #0f6b52;
+  --ok-soft: #ddf0e8;
+  --warn: #8a4a00;
+  --warn-soft: #fbeedb;
+  --danger: #a11d13;
+  --danger-soft: #fce9e7;
+  --unknown: #4c5b56;
+  --unknown-soft: #e4e9e7;
 
-  --p0: #b42318;
-  --p1: #a35a06;
-  --p2: #14675a;
-  --p3: #8a9793;
+  /* ── اولویت ── */
+  --p0: #a11d13;
+  --p1: #8a4a00;
+  --p2: #0f5a4e;
+  --p3: #4c5b56;
 
   --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 14px;
-  --shadow-1: 0 1px 2px rgba(16, 25, 23, 0.05);
-  --shadow-2: 0 2px 8px rgba(16, 25, 23, 0.07), 0 1px 2px rgba(16, 25, 23, 0.04);
-  --shadow-3: 0 12px 32px rgba(16, 25, 23, 0.12);
+  --shadow-1: 0 1px 2px rgba(13, 22, 20, 0.06);
+  --shadow-2: 0 2px 8px rgba(13, 22, 20, 0.09), 0 1px 2px rgba(13, 22, 20, 0.05);
+  --shadow-3: 0 16px 40px rgba(13, 22, 20, 0.18);
 
   --header-h: 60px;
   --content-max: 1440px;
@@ -91,12 +104,13 @@ body {
 
 /* حلقه‌ی فوکوس فقط هنگام پیمایش با کیبورد، نه کلیک ماوس */
 :focus-visible {
-  outline: 2px solid var(--brand);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 22%, transparent);
   border-radius: var(--radius-sm);
 }
 .on-dark :focus-visible {
-  outline-color: #7fd4c1;
+  outline-color: #6fd8f5;
 }
 
 /* پرش مستقیم به محتوا برای کاربر کیبورد و صفحه‌خوان */
@@ -303,7 +317,7 @@ body {
 .board-column-body {
   padding: 8px;
   min-height: 360px;
-  background: var(--canvas);
+  background: var(--surface-sunken);
   flex: 1;
   transition: background 0.14s ease, box-shadow 0.14s ease;
 }
@@ -453,4 +467,109 @@ body {
 
 .ant-table-tbody > tr.row-clickable:hover > td {
   background: var(--brand-soft) !important;
+}
+
+/* ───────────────────────────────────────────────────────────────
+   انتخابگر تاریخ شمسی.
+   کتابخانه‌ی قبلی با پیشوند rc-picker کار می‌کرد و CSS‌اش هم import
+   نشده بود، پس نه استایل داشت نه فونت. اینجا همه‌چیز از توکن‌های
+   خود برنامه می‌آید و وزیرمتن خودبه‌خود ارث می‌رسد.
+   ─────────────────────────────────────────────────────────────── */
+.jalali-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 4px 11px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.jalali-trigger:hover:not(:disabled) {
+  border-color: var(--brand);
+}
+.jalali-trigger:disabled {
+  background: var(--surface-sunken);
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+.jalali-clear {
+  color: var(--text-faint);
+  font-size: 12px;
+  border-radius: 50%;
+}
+.jalali-clear:hover {
+  color: var(--text-muted);
+}
+
+.jalali-panel {
+  font-family: inherit;
+}
+.jalali-weekdays,
+.jalali-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.jalali-weekdays {
+  margin-bottom: 4px;
+}
+.jalali-weekdays span {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-faint);
+  padding: 4px 0;
+}
+.jalali-day {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  font: inherit;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.jalali-day:hover {
+  background: var(--brand-soft);
+}
+.jalali-day[data-holiday] {
+  color: var(--danger);
+}
+/* «امروز» با قاب مشخص می‌شود نه فقط رنگ، تا بدون تشخیص رنگ هم دیده شود */
+.jalali-day[data-today] {
+  border-color: var(--brand);
+  font-weight: 700;
+}
+.jalali-day[data-selected] {
+  background: var(--brand);
+  color: #fff;
+  font-weight: 700;
+}
+.jalali-day[data-selected][data-holiday] {
+  color: #fff;
+}
+
+/* کلید میان‌بر در هدر */
+.kbd {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  margin-inline-start: 4px;
 }

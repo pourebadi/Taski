@@ -14,7 +14,7 @@ import {
   Space,
   App as AntApp,
 } from 'antd';
-import { DatePicker } from 'antd-jalali-plus';
+import JalaliDatePicker from '../components/JalaliDatePicker';
 import { PlusOutlined } from '@ant-design/icons';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -273,7 +273,7 @@ export default function Projects() {
             <Input.TextArea rows={3} />
           </Form.Item>
           <Form.Item name="targetDate" label={<FieldLabel label="تاریخ هدف" helpKey="projectTarget" />}>
-            <DatePicker style={{ width: '100%' }} />
+            <JalaliDatePicker style={{ width: '100%' }} />
           </Form.Item>
         </Form>
       </Modal>

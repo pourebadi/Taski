@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, Form, Input, Modal, Select, App as AntApp } from 'antd';
-import { DatePicker } from 'antd-jalali-plus';
+import JalaliDatePicker from './JalaliDatePicker';
 import dayjs from 'dayjs';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -111,7 +111,7 @@ export default function TrackedChangeModal({
             Form.Item توسط antd نادیده گرفته می‌شود و فقط هشدار کنسول می‌دهد. */}
         {kind === 'DUE_DATE' && (
           <Form.Item name="dueDate" label={<FieldLabel label="مهلت جدید" helpKey="dueDate" />} initialValue={dayjs()}>
-            <DatePicker style={{ width: '100%' }} />
+            <JalaliDatePicker style={{ width: '100%' }} />
           </Form.Item>
         )}
 

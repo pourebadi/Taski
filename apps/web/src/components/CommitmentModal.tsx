@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Alert, Descriptions, Form, InputNumber, Input, Modal, Select, App as AntApp } from 'antd';
-import { DatePicker } from 'antd-jalali-plus';
+import JalaliDatePicker from './JalaliDatePicker';
 import dayjs from 'dayjs';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
@@ -105,9 +105,9 @@ export default function CommitmentModal({ open, onClose, onSaved, item }: Props)
           assumptions: item.etaAssumptions ?? '',
         }}
       >
-        {/* تقویم شمسی از antd-jalali-plus — ذخیره‌سازی همچنان UTC است */}
+        {/* تقویم شمسی داخلی — ذخیره‌سازی همچنان UTC است */}
         <Form.Item name="newEta" label={<FieldLabel label={t('eta.current')} helpKey="currentEta" />}>
-          <DatePicker style={{ width: '100%' }} />
+          <JalaliDatePicker style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item name="newEstimateHours" label={<FieldLabel label={t('eta.estimateHours')} helpKey="estimateHours" />}>

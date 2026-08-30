@@ -12,7 +12,7 @@ export default defineConfig({
         manualChunks: {
           antd: ['antd', '@ant-design/icons'],
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          dates: ['dayjs', 'jalaliday', 'antd-jalali-plus'],
+          dates: ['dayjs'],
         },
       },
     },

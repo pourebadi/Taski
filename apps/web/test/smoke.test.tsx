@@ -13,7 +13,23 @@ import { MemoryRouter } from 'react-router-dom';
 import React from 'react';
 import dayjs from 'dayjs';
 import jalaliday from 'jalaliday';
+import calendarPlugin from 'dayjs/plugin/calendar';
+
+// این پلاگین عمداً ثبت می‌شود: قبلاً `.calendar()` را طوری بازتعریف
+// می‌کرد که یک رشته برگرداند و صفحه‌ی «پروژه‌ها» را سفید می‌کرد.
+// حالا تبدیل تاریخ اصلاً به dayjs وابسته نیست، پس این خط باید بی‌اثر
+// باشد. اگر روزی کسی toJalali را دوباره روی dayjs بنا کرد، همین‌جا لو می‌رود.
 dayjs.extend(jalaliday);
+dayjs.extend(calendarPlugin);
+
+it('toJalali با وجود تضاد پلاگین‌های dayjs سالم می‌ماند', async () => {
+  const { toJalali } = await import('../src/lib/date');
+  expect(toJalali('2026-03-21')).toBe('1405/01/01');
+  expect(toJalali('2026-08-30')).toBe('1405/06/08');
+  expect(toJalali('2026-08-30T09:30:00.000Z', 'YYYY/MM/DD HH:mm')).toMatch(/^1405\/06\/08 \d{2}:\d{2}$/);
+  expect(toJalali(null)).toBe('—');
+  expect(toJalali('کاملا-بی-معنا')).toBe('—');
+});
 
 import { theme } from '../src/theme';
 import { useAuth } from '../src/lib/auth-store';
@@ -28,6 +44,8 @@ import Login from '../src/pages/Login';
 import ChangePassword from '../src/pages/ChangePassword';
 import AppShell from '../src/components/AppShell';
 import WorkItemDrawer from '../src/components/WorkItemDrawer';
+import JalaliDatePicker from '../src/components/JalaliDatePicker';
+import CommandPalette from '../src/components/CommandPalette';
 
 // ── پاسخ‌های ساختگی سرور، با همان شکلی که API واقعاً برمی‌گرداند ──────
 const WORK_ITEM = {
@@ -178,6 +196,8 @@ const PAGES: [string, () => React.ReactElement][] = [
   ['Admin', () => <Admin />],
   ['AppShell', () => <AppShell><div>محتوا</div></AppShell>],
   ['WorkItemDrawer', () => <WorkItemDrawer id="w1" open onClose={() => {}} onChanged={() => {}} />],
+  ['JalaliDatePicker', () => <JalaliDatePicker value={null} onChange={() => {}} />],
+  ['CommandPalette', () => <CommandPalette onOpenItem={() => {}} />],
 ];
 
 describe('هر صفحه بدون خطا رندر می‌شود', () => {
