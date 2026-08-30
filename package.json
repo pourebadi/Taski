@@ -1,0 +1,26 @@
+{
+  "name": "pe-os",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm -w apps/api run dev\" \"npm -w apps/web run dev\"",
+    "build": "npm -w apps/web run build && npm -w apps/api run build",
+    "start": "npm -w apps/api run start:prod",
+    "test": "npm -w apps/api run test",
+    "db:migrate": "npm -w apps/api run db:migrate",
+    "db:seed": "npm -w apps/api run db:seed",
+    "backup:now": "npm -w apps/api run backup:now",
+    "admin:reset-password": "npm -w apps/api run admin:reset-password",
+    "backup:restore": "npm -w apps/api run backup:restore",
+    "seed:pilot": "npm -w apps/api run seed:pilot"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
