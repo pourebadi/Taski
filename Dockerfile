@@ -1,4 +1,4 @@
-# cache-bust: v3
+# cache-bust: v4
 FROM node:20-slim
 
 RUN apt-get update -y && apt-get install -y openssl
@@ -8,6 +8,7 @@ WORKDIR /app
 COPY . .
 
 RUN npm install
+RUN npx prisma generate --schema=apps/api/prisma/schema.prisma
 RUN npm run build
 
 WORKDIR /app/apps/api
