@@ -345,7 +345,7 @@ export default function WorkItemDrawer({
         <div
           style={{
             background: 'var(--warn-soft)',
-            border: '1px solid var(--warn)33',
+            border: '1px solid color-mix(in srgb, var(--warn) 30%, transparent)',
             borderRadius: 'var(--radius)',
             padding: '10px 12px',
             marginBottom: 16,

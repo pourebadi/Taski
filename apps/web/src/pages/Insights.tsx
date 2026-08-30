@@ -43,7 +43,7 @@ const FIELD_LABEL: Record<string, string> = {
 function Help({ k }: { k: string }) {
   return (
     <Tooltip title={HELP[k]} overlayStyle={{ maxWidth: 340 }}>
-      <InfoCircleOutlined style={{ color: '#8c8c8c', marginInlineStart: 4, fontSize: 13, cursor: 'help' }} />
+      <InfoCircleOutlined style={{ color: 'var(--text-faint)', marginInlineStart: 4, fontSize: 13, cursor: 'help' }} />
     </Tooltip>
   );
 }

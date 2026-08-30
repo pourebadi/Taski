@@ -11,11 +11,14 @@ import {
   LogoutOutlined,
   KeyOutlined,
   SearchOutlined,
+  MoonOutlined,
+  SunOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth-store';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import { useThemeMode } from '../theme/ThemeProvider';
 import CommandPalette from './CommandPalette';
 import WorkItemDrawer from './WorkItemDrawer';
 
@@ -44,6 +47,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const { user, clear } = useAuth();
+  const { mode, toggle } = useThemeMode();
   const screens = Grid.useBreakpoint();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // کار باز شده در URL نگه داشته می‌شود تا لینکش قابل اشتراک باشد
@@ -164,6 +168,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             )}
           </Button>
+
+          <Button
+            type="text"
+            className="theme-toggle"
+            onClick={toggle}
+            icon={mode === 'dark' ? <SunOutlined aria-hidden="true" /> : <MoonOutlined aria-hidden="true" />}
+            aria-label={mode === 'dark' ? 'روشن کردن تم روشن' : 'روشن کردن تم تیره'}
+          />
 
           <Dropdown
             trigger={['click']}
