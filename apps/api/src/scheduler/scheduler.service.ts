@@ -68,8 +68,8 @@ export class SchedulerService implements OnModuleInit, OnModuleDestroy {
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
 
     const dbTarget = join(dir, `app-${stamp}.db`);
-    await this.prisma.$executeRawUnsafe(`VACUUM INTO '${dbTarget}'`);
-
+    await this.prisma.$queryRawUnsafe(`VACUUM INTO '${dbTarget}'`);
+    
     const uploads = join(process.cwd(), 'data', 'uploads');
     if (existsSync(uploads)) {
       execSync(`tar -czf "${join(dir, `uploads-${stamp}.tar.gz`)}" -C "${join(process.cwd(), 'data')}" uploads`);
