@@ -10,7 +10,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const onFinish = async (values: { email: string; password: string }) => {
+  const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
     setError(null);
     try {
@@ -47,11 +47,11 @@ export default function Login() {
 
         <Form layout="vertical" onFinish={onFinish} requiredMark={false} size="large">
           <Form.Item
-            name="email"
-            label={t('auth.email')}
-            rules={[{ required: true, message: 'ایمیل را وارد کنید.' }]}
+            name="username"
+            label="نام‌کاربری"
+            rules={[{ required: true, message: 'نام‌کاربری را وارد کنید.' }]}
           >
-            <Input type="email" dir="ltr" autoComplete="username" autoFocus />
+            <Input dir="ltr" autoComplete="username" autoFocus placeholder="مثلاً: ali" />
           </Form.Item>
           <Form.Item
             name="password"

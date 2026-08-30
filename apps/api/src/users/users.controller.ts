@@ -31,6 +31,12 @@ export class UsersController {
   }
 
   @RequirePermission('user.manage')
+  @Patch(':id/capacity')
+  changeCapacity(@Req() req: any, @Param('id') id: string, @Body() body: { weeklyCapacityHours: number }) {
+    return this.users.changeCapacity(req.user, id, body.weeklyCapacityHours);
+  }
+
+  @RequirePermission('user.manage')
   @Post(':id/reset-password')
   resetPassword(@Req() req: any, @Param('id') id: string) {
     return this.users.resetPassword(req.user, id);

@@ -11,25 +11,19 @@ import {
   LogoutOutlined,
   KeyOutlined,
   SearchOutlined,
+  MoonOutlined,
+  SunOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../lib/auth-store';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import { label as termLabel } from '../lib/terms';
+import { useThemeMode } from '../theme/ThemeProvider';
 import CommandPalette from './CommandPalette';
 import WorkItemDrawer from './WorkItemDrawer';
 
 const { Header, Sider, Content } = Layout;
-
-const ROLE_LABEL: Record<string, string> = {
-  ORG_OWNER: 'مالک سازمان',
-  ADMIN: 'مدیر سیستم',
-  PROJECT_MANAGER: 'مدیر پروژه',
-  TEAM_LEAD: 'سرپرست تیم',
-  CONTRIBUTOR: 'عضو اجرایی',
-  REQUESTER: 'درخواست‌دهنده',
-  VIEWER: 'مشاهده‌گر',
-};
 
 const PAGE_TITLE: Record<string, string> = {
   '/my-work': 'کارهای من',
@@ -44,6 +38,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const { user, clear } = useAuth();
+  const { mode, toggle } = useThemeMode();
   const screens = Grid.useBreakpoint();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // کار باز شده در URL نگه داشته می‌شود تا لینکش قابل اشتراک باشد
@@ -165,6 +160,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </Button>
 
+          <Button
+            type="text"
+            className="theme-toggle"
+            onClick={toggle}
+            icon={mode === 'dark' ? <SunOutlined aria-hidden="true" /> : <MoonOutlined aria-hidden="true" />}
+            aria-label={mode === 'dark' ? 'روشن کردن تم روشن' : 'روشن کردن تم تیره'}
+          />
+
           <Dropdown
             trigger={['click']}
             menu={{
@@ -175,10 +178,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <div style={{ padding: '4px 0', minWidth: 170 }}>
                       <div style={{ fontWeight: 600 }}>{user?.fullName}</div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', direction: 'ltr', textAlign: 'start' }}>
-                        {user?.email}
+                        @{user?.username ?? user?.email}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--brand)', marginTop: 2 }}>
-                        {ROLE_LABEL[user?.role ?? ''] ?? user?.role}
+                        {termLabel('role', user?.role ?? '')}
                       </div>
                     </div>
                   ),

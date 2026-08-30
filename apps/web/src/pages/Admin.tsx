@@ -6,6 +6,7 @@ import {
   Dropdown,
   Form,
   Input,
+  InputNumber,
   Modal,
   Select,
   Skeleton,
@@ -17,6 +18,7 @@ import {
 import { MoreOutlined, PlusOutlined } from '@ant-design/icons';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import { options } from '../lib/terms';
 import FieldLabel from '../components/FieldLabel';
 import { Pill } from '../components/Badges';
 import { faDigits } from '../lib/date';
@@ -24,23 +26,15 @@ import { faDigits } from '../lib/date';
 type User = {
   id: string;
   fullName: string;
+  username?: string | null;
   email: string;
   jobTitle?: string | null;
   role: string;
   status: string;
+  weeklyCapacityHours?: number;
 };
 
 type Team = { id: string; name: string };
-
-const ROLE_LABEL: Record<string, string> = {
-  ORG_OWNER: 'مالک سازمان',
-  ADMIN: 'مدیر سیستم',
-  PROJECT_MANAGER: 'مدیر پروژه',
-  TEAM_LEAD: 'سرپرست تیم',
-  CONTRIBUTOR: 'عضو اجرایی',
-  REQUESTER: 'درخواست‌دهنده',
-  VIEWER: 'مشاهده‌گر',
-};
 
 const STATUS: Record<string, { label: string; tone: 'ok' | 'warn' | 'unknown' }> = {
   ACTIVE: { label: 'فعال', tone: 'ok' },
@@ -110,6 +104,16 @@ export default function Admin() {
     }
   };
 
+  const changeCapacity = async (id: string, hours: number | null) => {
+    if (hours == null) return;
+    try {
+      await api(`/users/${id}/capacity`, { method: 'PATCH', body: JSON.stringify({ weeklyCapacityHours: hours }) });
+      load();
+    } catch (e) {
+      message.error((e as Error).message);
+    }
+  };
+
   const changeRole = async (id: string, role: string) => {
     try {
       await api(`/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) });
@@ -156,7 +160,7 @@ export default function Admin() {
     if (!offboarding || !reassignTo) return;
     try {
       await api(`/users/${offboarding.id}/reassign-to/${reassignTo}`, { method: 'POST' });
-      message.success('کارها واگذار شدند.');
+      message.success('همه‌ی کارها منتقل شد و در تاریخچه‌ی هر کار ثبت ماند.');
       setOffboarding(null);
       load();
     } catch (e) {
@@ -204,7 +208,7 @@ export default function Admin() {
                   <div>
                     <div style={{ fontWeight: 500 }}>{v}</div>
                     <div style={{ fontSize: 11.5, color: 'var(--text-faint)', direction: 'ltr', textAlign: 'start' }}>
-                      {row.email}
+                      @{row.username ?? row.email}
                     </div>
                   </div>
                 ),
@@ -227,7 +231,26 @@ export default function Admin() {
                     style={{ width: 150 }}
                     aria-label={`نقش ${row.fullName}`}
                     onChange={(next) => changeRole(row.id, next)}
-                    options={Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))}
+                    options={options('role')}
+                  />
+                ),
+              },
+              {
+                title: <FieldLabel label="ظرفیت (ساعت/هفته)" helpKey="weeklyCapacity" />,
+                dataIndex: 'weeklyCapacityHours',
+                width: 130,
+                render: (h, row) => (
+                  <InputNumber
+                    size="small"
+                    min={0}
+                    max={80}
+                    defaultValue={h ?? 40}
+                    style={{ width: 72 }}
+                    aria-label={`ظرفیت ${row.fullName}`}
+                    onBlur={(e) => {
+                      const v = Number((e.target as HTMLInputElement).value);
+                      if (Number.isFinite(v) && v !== (h ?? 40)) changeCapacity(row.id, v);
+                    }}
                   />
                 ),
               },
@@ -246,7 +269,7 @@ export default function Admin() {
                     menu={{
                       items: [
                         { key: 'reset', label: 'رمز تازه بساز', onClick: () => resetPassword(row) },
-                        { key: 'offboard', label: 'واگذاری کارها', onClick: () => openOffboarding(row) },
+                        { key: 'offboard', label: 'انتقال همه کارها (خروج از تیم)', onClick: () => openOffboarding(row) },
                         { type: 'divider' },
                         row.status === 'ACTIVE'
                           ? {
@@ -271,11 +294,11 @@ export default function Admin() {
       {/* واگذاری پیش از خروج — API از قبل بود ولی هیچ دکمه‌ای نداشت */}
       <Modal
         open={!!offboarding}
-        title={`واگذاری کارهای ${offboarding?.fullName ?? ''}`}
+        title={`انتقال همه کارهای ${offboarding?.fullName ?? ''}`}
         onCancel={() => setOffboarding(null)}
         onOk={doReassign}
-        okButtonProps={{ disabled: !reassignTo }}
-        okText="واگذار کن"
+        okButtonProps={{ disabled: !reassignTo, danger: true }}
+        okText="انتقال بده"
         cancelText={t('common.cancel')}
         destroyOnClose
       >
@@ -283,9 +306,13 @@ export default function Admin() {
           <Skeleton active paragraph={{ rows: 2 }} />
         ) : (
           <>
-            <p style={{ marginTop: 0, color: 'var(--text-muted)' }}>
-              پیش از غیرفعال کردن، کارهای باز این نفر باید به کسی برسد.
-            </p>
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 14 }}
+              message="این کار برای وقتی است که کسی از تیم می‌رود یا مرخصی طولانی دارد."
+              description="همه‌ی کارهای باز این نفر یک‌جا به فرد دیگری منتقل می‌شود و در دفتر تغییرات هر کار ثبت می‌ماند. می‌خواهید فقط یک کار را واگذار کنید؟ آن کار را باز کنید و «مجری» را بزنید."
+            />
             <Space size="large" style={{ marginBottom: 16 }}>
               <span>
                 مالکِ <strong className="tabular">{faDigits(impact.openOwned)}</strong> کار باز
@@ -332,10 +359,16 @@ export default function Admin() {
             <Input />
           </Form.Item>
           <Form.Item
-            name="email"
-            label={t('auth.email')}
-            rules={[{ required: true, message: 'ایمیل را وارد کنید.' }]}
+            name="username"
+            label={t('auth.username')}
+            rules={[
+              { required: true, message: 'نام‌کاربری را وارد کنید.' },
+              { pattern: /^[^\s@]{3,30}$/, message: '۳ تا ۳۰ نویسه، بدون فاصله و @.' },
+            ]}
           >
+            <Input dir="ltr" placeholder="ali" />
+          </Form.Item>
+          <Form.Item name="email" label={<>{t('auth.email')} <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>(اختیاری)</span></>}>
             <Input dir="ltr" />
           </Form.Item>
           <Form.Item name="jobTitle" label={<FieldLabel label="سمت سازمانی" helpKey="jobTitle" />}>
@@ -347,10 +380,17 @@ export default function Admin() {
             rules={[{ required: true }]}
             initialValue="CONTRIBUTOR"
           >
-            <Select options={Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))} />
+            <Select options={options('role')} />
           </Form.Item>
           <Form.Item name="primaryTeamId" label={<FieldLabel label="تیم اصلی" helpKey="primaryTeam" />}>
             <Select allowClear options={teams.map((team) => ({ value: team.id, label: team.name }))} />
+          </Form.Item>
+          <Form.Item
+            name="weeklyCapacityHours"
+            label={<FieldLabel label="ظرفیت هفتگی (ساعت)" helpKey="weeklyCapacity" />}
+            initialValue={40}
+          >
+            <InputNumber min={0} max={80} style={{ width: '100%' }} addonAfter="ساعت در هفته" />
           </Form.Item>
         </Form>
       </Modal>

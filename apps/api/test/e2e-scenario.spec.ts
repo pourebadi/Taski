@@ -62,6 +62,7 @@ beforeAll(async () => {
       id: admin.id,
       organizationId: ORG,
       fullName: 'مدیر سیستم',
+      username: 'admin',
       email: 'admin@iranpeymex.local',
       passwordHash: await bcrypt.hash('Admin-Strong-1', 10),
       role: 'ORG_OWNER',
@@ -104,6 +105,7 @@ describe('۲) ساخت اعضای واقعی تیم', () => {
     for (const [i, p] of roster.entries()) {
       const res = await users.create(admin, {
         fullName: p.fullName,
+        username: `user${i + 1}`,
         email: `user${i + 1}@iranpeymex.local`,
         jobTitle: p.jobTitle,
         role: p.role as any,
@@ -134,7 +136,7 @@ describe('۲) ساخت اعضای واقعی تیم', () => {
 
   it('ایمیل تکراری رد می‌شود', async () => {
     await expect(
-      users.create(admin, { fullName: 'تکراری', email: 'user1@iranpeymex.local', role: 'VIEWER' }),
+      users.create(admin, { fullName: 'تکراری', username: 'user1', email: 'user1@iranpeymex.local', role: 'VIEWER' }),
     ).rejects.toThrow(/از قبل وجود دارد/);
   });
 
@@ -147,15 +149,15 @@ describe('۲) ساخت اعضای واقعی تیم', () => {
 
 describe('۳) ورود و امنیت', () => {
   it('رمز غلط با پیام یکسان رد می‌شود', async () => {
-    await expect(auth.login('admin@iranpeymex.local', 'wrong', 'test')).rejects.toThrow(/نادرست/);
+    await expect(auth.login('admin', 'wrong', 'test')).rejects.toThrow(/نادرست/);
   });
 
   it('کاربر ناموجود همان پیام را می‌گیرد تا وجود حساب افشا نشود', async () => {
-    await expect(auth.login('ghost@iranpeymex.local', 'x', 'test')).rejects.toThrow(/نادرست/);
+    await expect(auth.login('ghostuser', 'x', 'test')).rejects.toThrow(/نادرست/);
   });
 
   it('ورود درست نشست می‌سازد', async () => {
-    const res = await auth.login('admin@iranpeymex.local', 'Admin-Strong-1', 'vitest');
+    const res = await auth.login('admin', 'Admin-Strong-1', 'vitest');
     expect(res.accessToken).toBeTruthy();
     const sessions = await prisma.session.findMany({ where: { userId: admin.id, revokedAt: null } });
     expect(sessions).toHaveLength(1);
@@ -369,6 +371,7 @@ describe('۶) تعهد زمانی و تاریخچه', () => {
 
 describe('۷) چرخه اجرا تا تحویل', () => {
   const goli = () => ({ id: created['آقای گلی'], role: 'CONTRIBUTOR' as const, organizationId: ORG });
+  const torabi = () => ({ id: created['خانم ترابی'], role: 'TEAM_LEAD' as const, organizationId: ORG });
 
   it('مسیر بک‌لاگ تا در حال انجام', async () => {
     await items.changeState(goli(), created['task1'], 'READY');
@@ -381,8 +384,10 @@ describe('۷) چرخه اجرا تا تحویل', () => {
   });
 
   it('از مسیر بازبینی به انجام‌شده می‌رسد و زمان تکمیل ثبت می‌شود', async () => {
+    // مجری به تأیید می‌فرستد، ولی فقط تأییدکننده (ترابی) می‌تواند تأیید کند. (BE-1)
     await items.changeState(goli(), created['task1'], 'IN_REVIEW');
-    const done = await items.changeState(goli(), created['task1'], 'DONE');
+    await expect(items.changeState(goli(), created['task1'], 'DONE')).rejects.toThrow(/تأییدکننده/);
+    const done = await items.changeState(torabi(), created['task1'], 'DONE');
     expect(done.workflowState).toBe('DONE');
     expect(done.completedAt).toBeTruthy();
   });

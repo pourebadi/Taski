@@ -28,6 +28,9 @@ const base = {
   workflowState: 'IN_PROGRESS',
   deliveryHealth: 'ON_TRACK',
   priority: 'P2',
+  // actor u1 مجریِ این کار است تا اجازه‌ی تغییرات تعهدآور را داشته باشد (D-UX-2)
+  ownerId: 'u1',
+  primaryAssigneeId: 'u1',
   requiresReview: false,
   requiresQa: false,
   currentEta: new Date('2026-09-01T00:00:00Z'),
@@ -51,6 +54,28 @@ describe('گذار وضعیت', () => {
   it('گذار غیرمجاز رد می‌شود', async () => {
     const { svc } = svcWith({ ...base, workflowState: 'BACKLOG' });
     await expect(svc.changeState(actor, 'w1', 'DONE')).rejects.toThrow(/مجاز نیست/);
+  });
+});
+
+describe('اجبار تأییدکننده در بازبینی', () => {
+  it('رفتن به «منتظر تأیید» بدون تأییدکننده رد می‌شود', async () => {
+    const { svc } = svcWith({ ...base, workflowState: 'IN_PROGRESS', reviewerId: null });
+    await expect(svc.changeState(actor, 'w1', 'IN_REVIEW')).rejects.toThrow(/تأییدکننده/);
+  });
+
+  it('تأیید توسط غیرِتأییدکننده رد می‌شود', async () => {
+    const { svc } = svcWith({ ...base, workflowState: 'IN_REVIEW', reviewerId: 'someone-else', requiresReview: true });
+    await expect(svc.changeState(actor, 'w1', 'DONE')).rejects.toThrow(/تأییدکننده/);
+  });
+
+  it('تأییدکننده‌ی تعیین‌شده می‌تواند تأیید کند', async () => {
+    const { svc } = svcWith({ ...base, workflowState: 'IN_REVIEW', reviewerId: 'u1', requiresReview: true });
+    await expect(svc.changeState(actor, 'w1', 'DONE')).resolves.toBeTruthy();
+  });
+
+  it('مدیر پروژه می‌تواند تأیید کند حتی اگر تأییدکننده نباشد', async () => {
+    const { svc } = svcWith({ ...base, workflowState: 'IN_REVIEW', reviewerId: 'x', requiresReview: true });
+    await expect(svc.changeState(pmActor, 'w1', 'DONE')).resolves.toBeTruthy();
   });
 });
 
@@ -88,6 +113,13 @@ describe('تاریخچه تعهد', () => {
     await expect(
       svc.changeCommitment(actor, 'w1', { newEta: '2026-09-01T00:00:00Z', reasonType: 'BLOCKER' }),
     ).rejects.toThrow(/تغییری/);
+  });
+
+  it('غیرِمالک/مجری اجازه‌ی تغییر تعهد ندارد', async () => {
+    const { svc } = svcWith({ ...base, ownerId: 'someone', primaryAssigneeId: 'other' });
+    await expect(
+      svc.changeCommitment(actor, 'w1', { newEta: '2026-09-10T00:00:00Z', reasonType: 'BLOCKER' }),
+    ).rejects.toThrow(/مالک، مجری یا مدیر/);
   });
 
   it('بیس‌لاین اولیه با تغییر ETA دست‌نخورده می‌ماند', async () => {

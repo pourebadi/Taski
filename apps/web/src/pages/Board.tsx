@@ -12,36 +12,51 @@ import {
   DragOverlay,
 } from '@dnd-kit/core';
 import { Button, Select, Space, Tooltip, App as AntApp } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
-import { faDigits } from '../lib/date';
+import { options, priorityOptions, label as termLabel } from '../lib/terms';
+import { faDigits, hoursToWorkingDays } from '../lib/date';
+import { useAuth } from '../lib/auth-store';
+import { type BoardColumn, FLOW_STATES, effectiveColumns, columnLabel } from '../lib/board-config';
 import DraggableCard from '../components/DraggableCard';
 import WorkItemCard from '../components/WorkItemCard';
 import CreateWorkItemModal from '../components/CreateWorkItemModal';
+import CommitmentModal from '../components/CommitmentModal';
 import WorkItemDrawer from '../components/WorkItemDrawer';
+import BoardSettings from '../components/BoardSettings';
 import type { WorkItem } from '../components/WorkItemCard';
-
-const COLUMNS = ['BACKLOG', 'READY', 'IN_PROGRESS', 'IN_REVIEW', 'IN_QA', 'DONE'] as const;
-const STREAMS = ['PRODUCT', 'TECH_DEBT', 'SUPPORT', 'INFRASTRUCTURE'];
 
 function Column({
   state,
+  label,
   items,
   onOpen,
   nameOf,
 }: {
   state: string;
+  label: string;
   items: WorkItem[];
   onOpen: (id: string) => void;
   nameOf: (id?: string | null) => string | undefined;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: state });
 
+  // جمع تخمین کارهای این ستون — نشان می‌دهد چقدر کار اینجا نشسته
+  const estHours = items.reduce((s, i) => s + (i.estimateHours ?? 0), 0);
+  const estDays = Math.round(hoursToWorkingDays(estHours) * 10) / 10;
+
   return (
-    <section className="board-column" aria-label={`${t(`state.${state}`)} — ${items.length} کار`}>
+    <section className="board-column" aria-label={`${label} — ${items.length} کار`}>
       <header className="board-column-head">
-        <span style={{ fontWeight: 600, fontSize: 13 }}>{t(`state.${state}`)}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+          <span style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>{label}</span>
+          {estHours > 0 && (
+            <span style={{ fontSize: 11, color: 'var(--text-faint)' }} className="tabular">
+              ≈ {faDigits(estDays)} روز کاری
+            </span>
+          )}
+        </div>
         <span className="board-count" aria-hidden="true">
           {faDigits(items.length)}
         </span>
@@ -71,9 +86,14 @@ export default function Board() {
   const [filters, setFilters] = useState<{ workStream?: string; priority?: string; assigneeId?: string }>({});
   const [users, setUsers] = useState<{ id: string; fullName: string }[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [commitFor, setCommitFor] = useState<WorkItem | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<WorkItem | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const [boardCols, setBoardCols] = useState<BoardColumn[] | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const role = useAuth((s) => s.user?.role);
+  const canConfigure = ['ORG_OWNER', 'ADMIN'].includes(role ?? '');
   const { message } = AntApp.useApp();
 
   // KeyboardSensor نبود، پس بورد با کیبورد اصلاً قابل استفاده نبود.
@@ -94,7 +114,14 @@ export default function Board() {
   useEffect(load, [load]);
   useEffect(() => {
     api<any[]>('/users').then(setUsers).catch(() => setUsers([]));
+    // چیدمان بورد که مدیر تنظیم کرده (per-org)؛ null یعنی پیش‌فرض
+    api<{ columns: BoardColumn[] | null }>('/organization/board-config')
+      .then((r) => setBoardCols(r.columns))
+      .catch(() => setBoardCols(null));
   }, []);
+
+  // ستون‌های نمایان به ترتیب و با نامِ تنظیم‌شده
+  const visibleColumns = useMemo(() => effectiveColumns(boardCols).filter((c) => c.visible), [boardCols]);
 
   const nameOf = useCallback(
     (id?: string | null) => users.find((u) => u.id === id)?.fullName,
@@ -102,7 +129,7 @@ export default function Board() {
   );
 
   const grouped = useMemo(() => {
-    const map = new Map<string, WorkItem[]>(COLUMNS.map((c) => [c, []]));
+    const map = new Map<string, WorkItem[]>(FLOW_STATES.map((c) => [c, []]));
     for (const i of items) map.get(i.workflowState)?.push(i);
     return map;
   }, [items]);
@@ -121,13 +148,20 @@ export default function Board() {
     const current = items.find((i) => i.id === id);
     if (!current || current.workflowState === next) return;
 
+    // نرم، نه مانع: شروع کار بدون تعهد → مودال تعهد باز می‌شود. (D-UX-1)
+    if (next === 'IN_PROGRESS' && !current.currentEta) {
+      setCommitFor(current);
+      message.info('برای شروع، اول تخمین و تاریخ تحویل را ثبت کن.');
+      return;
+    }
+
     const previous = items;
     setItems((cur) => cur.map((i) => (i.id === id ? { ...i, workflowState: next } : i)));
 
     try {
       await api(`/work-items/${id}/state`, { method: 'PATCH', body: JSON.stringify({ state: next }) });
       // نتیجه‌ی جابه‌جایی برای کاربر صفحه‌خوان هم اعلام می‌شود
-      setAnnouncement(`${current.key} به ${t(`state.${next}`)} منتقل شد.`);
+      setAnnouncement(`${current.key} به ${termLabel('state', next)} منتقل شد.`);
     } catch (err) {
       setItems(previous); // بازگشت خوش‌بینانه
       setAnnouncement(`جابه‌جایی ${current.key} انجام نشد.`);
@@ -150,7 +184,7 @@ export default function Board() {
             style={{ width: 148 }}
             value={filters.workStream}
             onChange={(workStream) => setFilters((f) => ({ ...f, workStream }))}
-            options={STREAMS.map((s) => ({ value: s, label: t(`stream.${s}`) }))}
+            options={options('stream')}
           />
           <Select
             allowClear
@@ -159,7 +193,7 @@ export default function Board() {
             style={{ width: 112 }}
             value={filters.priority}
             onChange={(priority) => setFilters((f) => ({ ...f, priority }))}
-            options={['P0', 'P1', 'P2', 'P3'].map((p) => ({ value: p, label: p }))}
+            options={priorityOptions()}
           />
           <Select
             allowClear
@@ -175,6 +209,11 @@ export default function Board() {
           <Tooltip title="بارگذاری دوباره">
             <Button icon={<ReloadOutlined />} onClick={load} aria-label="بارگذاری دوباره" />
           </Tooltip>
+          {canConfigure && (
+            <Tooltip title="تنظیم بورد (ستون‌ها)">
+              <Button icon={<SettingOutlined />} onClick={() => setSettingsOpen(true)} aria-label="تنظیم بورد" />
+            </Tooltip>
+          )}
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
             کار جدید
           </Button>
@@ -189,8 +228,15 @@ export default function Board() {
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         {/* در RTL ستون‌ها خودکار از راست چیده می‌شوند */}
         <div className="board-scroll">
-          {COLUMNS.map((c) => (
-            <Column key={c} state={c} items={grouped.get(c) ?? []} onOpen={setOpenId} nameOf={nameOf} />
+          {visibleColumns.map((col) => (
+            <Column
+              key={col.state}
+              state={col.state}
+              label={columnLabel(col)}
+              items={grouped.get(col.state) ?? []}
+              onOpen={setOpenId}
+              nameOf={nameOf}
+            />
           ))}
         </div>
 
@@ -204,7 +250,26 @@ export default function Board() {
       </DndContext>
 
       <CreateWorkItemModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={load} />
+      {commitFor && (
+        <CommitmentModal
+          open={!!commitFor}
+          item={commitFor}
+          onClose={() => setCommitFor(null)}
+          onSaved={() => {
+            setCommitFor(null);
+            load();
+          }}
+        />
+      )}
       <WorkItemDrawer id={openId} open={!!openId} onClose={() => setOpenId(null)} onChanged={load} />
+      {canConfigure && (
+        <BoardSettings
+          open={settingsOpen}
+          columns={boardCols}
+          onClose={() => setSettingsOpen(false)}
+          onSaved={(cols) => setBoardCols(cols)}
+        />
+      )}
     </>
   );
 }

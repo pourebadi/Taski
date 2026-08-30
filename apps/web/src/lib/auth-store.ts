@@ -3,6 +3,7 @@ import { create } from 'zustand';
 export type CurrentUser = {
   id: string;
   fullName: string;
+  username: string | null;
   email: string;
   role: string;
   mustChangePassword: boolean;

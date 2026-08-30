@@ -9,7 +9,7 @@
     "dev": "concurrently -n api,web -c blue,green \"npm -w apps/api run dev\" \"npm -w apps/web run dev\"",
     "build": "npm -w apps/web run build && npm -w apps/api run build",
     "start": "npm -w apps/api run start:prod",
-    "test": "npm -w apps/api run test",
+    "test": "npm -w apps/api run test && npm -w apps/web run test",
     "db:migrate": "npm -w apps/api run db:migrate",
     "db:seed": "npm -w apps/api run db:seed",
     "backup:now": "npm -w apps/api run backup:now",

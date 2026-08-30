@@ -1,12 +1,11 @@
-import { t } from '../lib/i18n';
+import { label, tone as termTone, priorityColor, type Tone } from '../lib/terms';
 
 /**
  * واژگان بصری مشترک.
  * قاعده: رنگ هرگز تنها حامل معنا نیست — هر نشان متن هم دارد،
  * تا برای کاربر کم‌بینا یا در چاپ سیاه‌وسفید هم خوانا بماند.
+ * منبع برچسب و رنگ‌ها: lib/terms.ts.
  */
-
-type Tone = 'ok' | 'warn' | 'danger' | 'unknown' | 'brand';
 
 const TONE_VARS: Record<Tone, { fg: string; bg: string }> = {
   ok: { fg: 'var(--ok)', bg: 'var(--ok-soft)' },
@@ -40,7 +39,7 @@ export function Pill({
         lineHeight: 1.6,
         color: c.fg,
         background: c.bg,
-        border: `1px solid ${c.fg}22`,
+        border: `1px solid color-mix(in srgb, ${c.fg} 20%, transparent)`,
         whiteSpace: 'nowrap',
       }}
     >
@@ -49,18 +48,11 @@ export function Pill({
   );
 }
 
-const HEALTH_TONE: Record<string, Tone> = {
-  ON_TRACK: 'ok',
-  AT_RISK: 'warn',
-  BLOCKED: 'danger',
-  UNKNOWN: 'unknown',
-};
-
 /** نقطه‌ی رنگی + متن. متن همیشه هست، پس رنگ فقط تقویت‌کننده است. */
 export function HealthBadge({ health }: { health: string }) {
-  const tone = HEALTH_TONE[health] ?? 'unknown';
+  const tone = termTone('health', health);
   return (
-    <Pill tone={tone}>
+    <Pill tone={tone} title={label('health', health)}>
       <span
         aria-hidden="true"
         style={{
@@ -71,66 +63,53 @@ export function HealthBadge({ health }: { health: string }) {
           flex: 'none',
         }}
       />
-      {t(`health.${health}`)}
+      {label('health', health)}
     </Pill>
   );
 }
 
-const PRIORITY_COLOR: Record<string, string> = {
-  P0: 'var(--p0)',
-  P1: 'var(--p1)',
-  P2: 'var(--p2)',
-  P3: 'var(--p3)',
-};
+export { priorityColor };
 
-const PRIORITY_LABEL: Record<string, string> = {
-  P0: 'فوری',
-  P1: 'بالا',
-  P2: 'عادی',
-  P3: 'پایین',
-};
-
-export const priorityColor = (p: string) => PRIORITY_COLOR[p] ?? 'var(--p3)';
-
-/** خود «P0» برای صفحه‌خوان بی‌معناست، پس معنای فارسی هم اعلام می‌شود. */
+/**
+ * اولویت — دیگر «P0» خشک نیست. معنای فارسی جلو می‌آید و کد در کنارش
+ * (mono، LTR) تا کسی که با P0 آشناست هم جا نماند.
+ */
 export function PriorityBadge({ priority }: { priority: string }) {
+  const color = priorityColor(priority);
+  const fa = label('priority', priority);
   return (
     <span
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: 4,
-        fontFamily: 'var(--mono)',
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: '0.03em',
-        color: priorityColor(priority),
-        background: `color-mix(in srgb, ${priorityColor(priority)} 10%, transparent)`,
-        border: `1px solid color-mix(in srgb, ${priorityColor(priority)} 25%, transparent)`,
-        borderRadius: 5,
-        padding: '1px 6px',
-        direction: 'ltr',
+        gap: 5,
+        fontSize: 11.5,
+        fontWeight: 600,
+        color,
+        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+        border: `1px solid color-mix(in srgb, ${color} 28%, transparent)`,
+        borderRadius: 6,
+        padding: '1px 7px',
       }}
     >
-      {priority}
-      <span className="sr-only">— اولویت {PRIORITY_LABEL[priority] ?? priority}</span>
+      {fa}
+      <span
+        aria-hidden="true"
+        style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, letterSpacing: '0.03em', direction: 'ltr', opacity: 0.85 }}
+      >
+        {priority}
+      </span>
+      <span className="sr-only">— اولویت {fa}</span>
     </span>
   );
 }
 
-const STATE_TONE: Record<string, Tone> = {
-  INBOX: 'unknown',
-  BACKLOG: 'unknown',
-  READY: 'brand',
-  IN_PROGRESS: 'brand',
-  IN_REVIEW: 'warn',
-  IN_QA: 'warn',
-  DONE: 'ok',
-  CANCELLED: 'unknown',
-};
-
 export function StateBadge({ state }: { state: string }) {
-  return <Pill tone={STATE_TONE[state] ?? 'unknown'}>{t(`state.${state}`)}</Pill>;
+  return (
+    <Pill tone={termTone('state', state)} title={label('state', state)}>
+      {label('state', state)}
+    </Pill>
+  );
 }
 
 /** کلید کار — همیشه LTR و با ارقام هم‌عرض تا در متن فارسی نشکند. */

@@ -1,0 +1,38 @@
+# وابستگی‌ها
+node_modules/
+.pnp
+.pnp.js
+
+# خروجی build
+dist/
+build/
+apps/web/dist/
+apps/api/dist/
+*.tsbuildinfo
+
+# کش ابزارها
+.vite/
+.cache/
+coverage/
+.eslintcache
+
+# داده — طبق قانون ۵ در CLAUDE.md هرگز commit نمی‌شود
+data/
+*.db
+*.db-*
+
+# محیط و رازها
+.env
+.env.*
+!.env.example
+
+# لاگ
+*.log
+npm-debug.log*
+
+# سیستم‌عامل و ادیتور
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

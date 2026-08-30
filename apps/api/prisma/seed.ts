@@ -38,11 +38,13 @@ async function main() {
     if (!email || !password) {
       throw new Error('ADMIN_EMAIL و ADMIN_PASSWORD تنظیم نشده‌اند. ساخت ادمین اولیه ممکن نیست.');
     }
+    const username = (process.env.ADMIN_USERNAME ?? email.split('@')[0]).toLowerCase();
     await prisma.user.create({
       data: {
         id: randomUUID(),
         organizationId: ORG_ID,
         fullName: process.env.ADMIN_NAME ?? 'مدیر سیستم',
+        username,
         email: email.toLowerCase(),
         passwordHash: await bcrypt.hash(password, 10),
         role: 'ORG_OWNER',
@@ -50,7 +52,7 @@ async function main() {
         mustChangePassword: process.env.NODE_ENV === 'production',
       },
     });
-    console.log(`ادمین اولیه ساخته شد: ${email}`);
+    console.log(`ادمین اولیه ساخته شد: @${username} (${email})`);
   } else {
     console.log('کاربر از قبل وجود دارد؛ رمز بازنویسی نشد.');
   }

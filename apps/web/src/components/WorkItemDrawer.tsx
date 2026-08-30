@@ -18,6 +18,8 @@ import {
 } from 'antd';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
+import { options, labelDual } from '../lib/terms';
+import { useAuth } from '../lib/auth-store';
 import { toJalali, faDigits } from '../lib/date';
 import CommitmentModal from './CommitmentModal';
 import TrackedChangeModal, { TrackedChange } from './TrackedChangeModal';
@@ -61,6 +63,7 @@ type Detail = {
     healthNote?: string | null;
     requiresReview: boolean;
     requiresQa: boolean;
+    reviewerId?: string | null;
   };
   commitments: Commitment[];
   changes: ChangeRecord[];
@@ -85,8 +88,8 @@ const FIELD_LABEL: Record<string, string> = {
   PRIORITY: 'اولویت',
   DUE_DATE: 'مهلت',
   ASSIGNEE: 'مجری',
-  OWNER: 'مالک',
-  REVIEWER: 'بازبین',
+  OWNER: 'مسئول',
+  REVIEWER: 'تأییدکننده',
   CANCEL: 'لغو کار',
 };
 
@@ -97,7 +100,7 @@ const ACTION_LABEL: Record<string, string> = {
   ETA_CHANGED: 'تاریخ تحویل عوض شد',
   PRIORITY_CHANGED: 'اولویت عوض شد',
   ASSIGNEE_CHANGED: 'مجری عوض شد',
-  OWNER_CHANGED: 'مالک عوض شد',
+  OWNER_CHANGED: 'مسئول عوض شد',
   DUE_DATE_CHANGED: 'مهلت عوض شد',
 };
 
@@ -131,6 +134,9 @@ export default function WorkItemDrawer({
   const [healthDraft, setHealthDraft] = useState<{ health: string; note: string } | null>(null);
   const [tracked, setTracked] = useState<TrackedChange | null>(null);
   const [users, setUsers] = useState<{ id: string; fullName: string }[]>([]);
+  const [siblings, setSiblings] = useState<{ id: string; key: string; title: string }[]>([]);
+  const [sendBack, setSendBack] = useState<{ reasonType?: string; reasonText: string } | null>(null);
+  const user = useAuth((s) => s.user);
   const { message } = AntApp.useApp();
 
   const load = () => {
@@ -149,7 +155,17 @@ export default function WorkItemDrawer({
   useEffect(() => {
     if (!open) return;
     api<any[]>('/users').then(setUsers).catch(() => setUsers([]));
-  }, [open]);
+    // کارهای فعالِ دیگر — برای فیلد «کدام کار عقب می‌افتد؟» موقع بالابردن اولویت (FE-4)
+    api<any[]>('/work-items')
+      .then((all) =>
+        setSiblings(
+          all
+            .filter((w) => w.id !== id && ['READY', 'IN_PROGRESS', 'IN_REVIEW', 'IN_QA'].includes(w.workflowState))
+            .map((w) => ({ id: w.id, key: w.key, title: w.title })),
+        ),
+      )
+      .catch(() => setSiblings([]));
+  }, [open, id]);
 
   // برای «در خطر» و «مسدود» سرور توضیح اجباری می‌خواهد؛ با مودال می‌گیریم نه prompt مرورگر
   const changeHealth = (health: string) => {
@@ -171,21 +187,38 @@ export default function WorkItemDrawer({
     }
   };
 
-  const changeState = async (next: string) => {
+  const changeState = async (next: string, reason?: { reasonType: string; reasonText?: string }) => {
     // لغو باید علت داشته باشد، پس از مسیر مودال ردیابی‌شده می‌رود
     if (next === 'CANCELLED') {
       setTracked('CANCEL');
       return;
     }
+    // نرم، نه مانع: برای شروع کار باید تعهد داده باشی. به‌جای خطا، مودال تعهد
+    // باز می‌شود تا همان‌جا پرش کنی. (تصمیم D-UX-1، بدون باتل‌نک)
+    if (next === 'IN_PROGRESS' && data?.item && !data.item.currentEta) {
+      message.info('برای شروع، اول تخمین و تاریخ تحویل را ثبت کن.');
+      setEtaOpen(true);
+      return;
+    }
     try {
-      await api(`/work-items/${id}/state`, { method: 'PATCH', body: JSON.stringify({ state: next }) });
-      message.success(`به «${t(`state.${next}`)}» منتقل شد.`);
+      await api(`/work-items/${id}/state`, {
+        method: 'PATCH',
+        body: JSON.stringify({ state: next, ...(reason ?? {}) }),
+      });
+      message.success(`به «${labelDual('state', next)}» منتقل شد.`);
       load();
       onChanged();
     } catch (e) {
       message.error((e as Error).message);
     }
   };
+
+  // تأیید فقط برای تأییدکننده‌ی تعیین‌شده یا نقش مدیریتی (هم‌راستا با گارد سرور)
+  const canReview =
+    !!data?.item &&
+    (user?.id === data.item.reviewerId || ['ORG_OWNER', 'ADMIN', 'PROJECT_MANAGER'].includes(user?.role ?? ''));
+
+  const approve = () => changeState(data?.item.requiresQa ? 'IN_QA' : 'DONE');
 
   const submitComment = async () => {
     if (!comment.trim()) return;
@@ -241,23 +274,44 @@ export default function WorkItemDrawer({
         </div>
       }
     >
+      {/* نوار تأیید — وقتی این کار منتظر تأیید توست، جای تأیید صریح و جلوی چشم است */}
+      {item.workflowState === 'IN_REVIEW' && canReview && (
+        <div className="review-bar">
+          <span className="review-bar-text">این کار منتظر تأیید توست.</span>
+          <Space>
+            <Button type="primary" onClick={approve}>
+              تأیید {item.requiresQa ? '→ ارسال به تست' : 'و بستن'}
+            </Button>
+            <Button onClick={() => setSendBack({ reasonText: '' })}>برگشت با توضیح</Button>
+          </Space>
+        </div>
+      )}
+      {item.workflowState === 'IN_REVIEW' && !canReview && (
+        <div className="review-bar" data-tone="muted">
+          <span className="review-bar-text">
+            منتظر تأیید {users.find((u) => u.id === item.reviewerId)?.fullName ?? 'تأییدکننده'} است.
+          </span>
+        </div>
+      )}
+
       {/* نوار عمل — همه‌ی کارهایی که روی این آیتم می‌شود کرد، یک‌جا */}
       <Space wrap style={{ marginBottom: 18 }}>
         <Select
           value={item.workflowState}
           style={{ width: 160 }}
           aria-label="تغییر مرحله"
-          onChange={changeState}
+          onChange={(v) => changeState(v)}
           options={[
-            { value: item.workflowState, label: `${t(`state.${item.workflowState}`)} (فعلی)`, disabled: true },
-            ...nextStates.map((s) => ({ value: s, label: t(`state.${s}`) })),
+            { value: item.workflowState, label: `${labelDual('state', item.workflowState)} (فعلی)`, disabled: true },
+            ...nextStates.map((s) => ({ value: s, label: labelDual('state', s) })),
           ]}
         />
         <Button type="primary" onClick={() => setEtaOpen(true)}>
           {t('eta.change')}
         </Button>
         <Button onClick={() => setTracked('PRIORITY')}>اولویت</Button>
-        <Button onClick={() => setTracked('ASSIGNEE')}>واگذاری</Button>
+        <Button onClick={() => setTracked('ASSIGNEE')}>مجری</Button>
+        <Button onClick={() => setTracked('OWNER')}>مسئول</Button>
         <Button onClick={() => setTracked('DUE_DATE')}>مهلت</Button>
         {item.workflowState !== 'CANCELLED' && (
           <Button danger onClick={() => setTracked('CANCEL')}>
@@ -311,10 +365,7 @@ export default function WorkItemDrawer({
             style={{ width: 140 }}
             aria-label="تغییر سلامت تحویل"
             onChange={changeHealth}
-            options={['ON_TRACK', 'AT_RISK', 'BLOCKED', 'UNKNOWN'].map((h) => ({
-              value: h,
-              label: t(`health.${h}`),
-            }))}
+            options={options('health')}
           />
         </Descriptions.Item>
         <Descriptions.Item label="اولویت">
@@ -333,7 +384,7 @@ export default function WorkItemDrawer({
         <Descriptions.Item label={t('eta.estimateHours')}>
           {item.estimateHours ? faDigits(item.estimateHours) : '—'}
         </Descriptions.Item>
-        <Descriptions.Item label={<FieldLabel label="نیاز به بازبینی" helpKey="requiresReview" />}>
+        <Descriptions.Item label={<FieldLabel label="نیاز به تأیید" helpKey="requiresReview" />}>
           {item.requiresReview ? 'بله' : 'خیر'}
         </Descriptions.Item>
         <Descriptions.Item label={<FieldLabel label="نیاز به تست" helpKey="requiresQa" />}>
@@ -345,7 +396,7 @@ export default function WorkItemDrawer({
         <div
           style={{
             background: 'var(--warn-soft)',
-            border: '1px solid var(--warn)33',
+            border: '1px solid color-mix(in srgb, var(--warn) 30%, transparent)',
             borderRadius: 'var(--radius)',
             padding: '10px 12px',
             marginBottom: 16,
@@ -531,6 +582,38 @@ export default function WorkItemDrawer({
         />
       </Modal>
 
+      <Modal
+        open={!!sendBack}
+        title="برگشت برای اصلاح"
+        okText="برگشت بده"
+        cancelText={t('common.cancel')}
+        onCancel={() => setSendBack(null)}
+        okButtonProps={{ disabled: !sendBack?.reasonType }}
+        onOk={async () => {
+          if (!sendBack?.reasonType) return;
+          await changeState('IN_PROGRESS', { reasonType: sendBack.reasonType, reasonText: sendBack.reasonText });
+          setSendBack(null);
+        }}
+      >
+        <p style={{ marginTop: 0, color: 'var(--text-muted)' }}>
+          کار به «در حال انجام» برمی‌گردد. بگو چه چیزی باید درست شود تا در تاریخچه بماند.
+        </p>
+        <Select
+          style={{ width: '100%', marginBottom: 10 }}
+          placeholder="علت برگشت"
+          options={options('reason')}
+          value={sendBack?.reasonType}
+          onChange={(v) => setSendBack((s) => (s ? { ...s, reasonType: v } : s))}
+        />
+        <Input.TextArea
+          rows={3}
+          aria-label="توضیح برگشت"
+          placeholder="مثلاً: تست‌ها را اضافه کن و لبه‌ی مبلغ صفر را هم پوشش بده."
+          value={sendBack?.reasonText ?? ''}
+          onChange={(e) => setSendBack((s) => (s ? { ...s, reasonText: e.target.value } : s))}
+        />
+      </Modal>
+
       {id && tracked && (
         <TrackedChangeModal
           key={`${id}-${tracked}`}
@@ -538,6 +621,7 @@ export default function WorkItemDrawer({
           kind={tracked}
           workItemId={id}
           users={users}
+          siblings={siblings}
           onClose={() => setTracked(null)}
           onSaved={() => {
             load();

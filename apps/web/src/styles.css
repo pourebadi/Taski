@@ -21,63 +21,114 @@
 }
 
 /* ───────────────────────────────────────────────────────────────
-   توکن‌های طراحی — تک منبع حقیقت برای رنگ و ساختار.
-   هیچ رنگ خامی نباید مستقیم در کامپوننت نوشته شود.
+   توکن‌های طراحی — این مقادیر باید عیناً برابر theme/tokens.ts باشند.
+   تست theme-sync.test.ts این برابری را تضمین می‌کند؛ اگر واگرا شوند
+   قرمز می‌شود. رنگ‌های روشن با contrast.test.ts (WCAG AA) هم سنجیده‌اند.
    ─────────────────────────────────────────────────────────────── */
 :root {
   color-scheme: light;
 
-  /* ── سطوح ──
-     تفکیک بوم از کارت قبلاً ۱.۰۷:۱ بود، یعنی روی مانیتور معمولی
-     ستون‌های بورد و مرز بخش‌ها اصلاً دیده نمی‌شدند. */
-  --ink: #0d1614;
+  /* سطوح */
+  --ink: #0f1a18;
+  --sider-bg: #0f1a18;
+  --sider-text: #eaf1ee;
   --surface: #ffffff;
-  --surface-sunken: #f2f5f4;
-  --canvas: #e9edec;
-  --line: #76867f;        /* ۳.۸۳:۱ روی سفید و ۳.۲۴:۱ روی بوم — هر دو پاس */
-  --line-soft: #c9d3cf;   /* فقط برای جداکننده‌های داخلی کم‌اهمیت */
+  --surface-sunken: #f4f7f6;
+  --elevated: #ffffff;
+  --canvas: #e9eeec;
+
+  /* خطوط: --line با AA سازگار است (۳:۱)؛ --line-soft برای جداسازی نرمِ بصری */
+  --line: #6f7f79;
+  --line-soft: #dbe2df;
   --line-strong: #5f6e69;
 
-  /* ── متن ── همه بالای ۴.۵:۱ روی هر دو سطح */
-  --text: #1a2724;
-  --text-muted: #4c5b56;
-  --text-faint: #5f6e69;
-  --text-invert: #f2f6f5;
+  /* متن */
+  --text: #14211d;
+  --text-muted: #55635e;
+  --text-faint: #5c6a65;
+  --text-invert: #f4f7f6;
 
-  /* ── برند ── */
-  --brand: #0f5a4e;
-  --brand-hover: #0b4740;
-  --brand-soft: #dfeeea;
-  --brand-line: #7fada2;
-  --focus: #0a6b8f;       /* آبی، تا با سبزِ «سالم» اشتباه نشود */
+  /* برند */
+  --brand: #0f6b5b;
+  --brand-hover: #0b5447;
+  --brand-soft: #ddeee9;
+  --brand-line: #7fb3a6;
+  --focus: #0a6b8f;
 
-  /* ── سیگنال‌ها ── */
+  /* سیگنال‌ها */
   --ok: #0f6b52;
-  --ok-soft: #ddf0e8;
+  --ok-soft: #dff2ea;
   --warn: #8a4a00;
   --warn-soft: #fbeedb;
-  --danger: #a11d13;
-  --danger-soft: #fce9e7;
+  --danger: #a4231a;
+  --danger-soft: #fdeae7;
   --unknown: #4c5b56;
-  --unknown-soft: #e4e9e7;
+  --unknown-soft: #e6ebe9;
 
-  /* ── اولویت ── */
-  --p0: #a11d13;
+  /* اولویت */
+  --p0: #a4231a;
   --p1: #8a4a00;
-  --p2: #0f5a4e;
+  --p2: #0f6b5b;
   --p3: #4c5b56;
 
+  /* سایه‌ها */
+  --shadow-1: 0 1px 2px rgba(16, 33, 29, 0.06);
+  --shadow-2: 0 4px 16px rgba(16, 33, 29, 0.08), 0 1px 3px rgba(16, 33, 29, 0.06);
+  --shadow-3: 0 24px 48px -12px rgba(16, 33, 29, 0.22);
+
+  /* ساختاری — مستقل از تم */
   --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 14px;
-  --shadow-1: 0 1px 2px rgba(13, 22, 20, 0.06);
-  --shadow-2: 0 2px 8px rgba(13, 22, 20, 0.09), 0 1px 2px rgba(13, 22, 20, 0.05);
-  --shadow-3: 0 16px 40px rgba(13, 22, 20, 0.18);
-
   --header-h: 60px;
   --content-max: 1440px;
-
   --mono: 'SFMono-Regular', ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+/* ── تمِ تیره ── فقط توکن‌ها override می‌شوند؛ جداسازی با ارتفاع/سایه است. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --ink: #0b1210;
+  --sider-bg: #0b1210;
+  --sider-text: #eaf1ee;
+  --surface: #151e1b;
+  --surface-sunken: #101917;
+  --elevated: #1b2723;
+  --canvas: #0e1614;
+
+  --line: #2b3833;
+  --line-soft: #243430;
+  --line-strong: #3a4a44;
+
+  --text: #e8efec;
+  --text-muted: #a4b3ad;
+  --text-faint: #84948e;
+  --text-invert: #0e1614;
+
+  --brand: #3fbfa9;
+  --brand-hover: #57cdb8;
+  --brand-soft: #122f29;
+  --brand-line: #2a4f47;
+  --focus: #5cc7ec;
+
+  --ok: #37b98f;
+  --ok-soft: #123a30;
+  --warn: #d99236;
+  --warn-soft: #3a2a12;
+  --danger: #f0685a;
+  --danger-soft: #3a1c19;
+  --unknown: #93a29c;
+  --unknown-soft: #23302c;
+
+  --p0: #f0685a;
+  --p1: #d99236;
+  --p2: #3fbfa9;
+  --p3: #93a29c;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 28px 56px -12px rgba(0, 0, 0, 0.7);
 }
 
 * {
@@ -96,6 +147,7 @@ body {
   background: var(--canvas);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* ───────────────────────────────────────────────────────────────
@@ -211,10 +263,11 @@ body {
   color: var(--text-faint);
 }
 
+/* کارت تعاملی — جداسازی با سایه و مرز نرم، نه خط پررنگِ وایرفریمی */
 .card-interactive {
   position: relative;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius);
   box-shadow: var(--shadow-1);
   transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
@@ -222,6 +275,7 @@ body {
 .card-interactive:hover {
   border-color: var(--brand-line);
   box-shadow: var(--shadow-2);
+  transform: translateY(-1px);
 }
 
 /* نوار باریک کنار کارت: اولویت را بدون اتکای صرف به رنگ می‌رساند */
@@ -251,7 +305,7 @@ body {
   flex: 1;
   height: 4px;
   border-radius: 999px;
-  background: var(--line);
+  background: var(--surface-sunken);
   min-width: 40px;
 }
 .drift-fill {
@@ -302,8 +356,9 @@ body {
   min-width: 264px;
   flex: 1 1 264px;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
   overflow: hidden;
 }
 .board-column-head {
@@ -312,7 +367,8 @@ body {
   justify-content: space-between;
   gap: 8px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--surface);
 }
 .board-column-body {
   padding: 8px;
@@ -331,7 +387,7 @@ body {
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);
   background: var(--canvas);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-radius: 999px;
   padding: 1px 8px;
   min-width: 26px;
@@ -362,12 +418,17 @@ body {
   place-items: center;
   min-height: 100vh;
   padding: 24px;
-  background: radial-gradient(120% 80% at 100% 0%, #17352e 0%, var(--ink) 55%);
+  background: radial-gradient(
+    120% 80% at 100% 0%,
+    color-mix(in srgb, var(--brand) 32%, var(--ink)) 0%,
+    var(--ink) 55%
+  );
 }
 .auth-card {
   width: 100%;
   max-width: 400px;
   background: var(--surface);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-3);
   padding: 32px 28px;
@@ -395,7 +456,7 @@ body {
   height: var(--header-h);
   padding: 0 16px;
   background: var(--surface);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-soft);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -417,18 +478,24 @@ body {
   align-items: center;
   gap: 10px;
   padding: 18px 18px 12px;
-  color: #fff;
+  color: var(--sider-text);
 }
 .brand-lockup .mark {
   width: 30px;
   height: 30px;
   border-radius: 8px;
   background: var(--brand);
+  color: #fff;
   display: grid;
   place-items: center;
   font-weight: 700;
   font-size: 13px;
   flex: none;
+}
+
+/* دکمه‌ی تغییر تم در هدر */
+.theme-toggle {
+  color: var(--text-muted);
 }
 
 .stat-grid {
@@ -465,8 +532,16 @@ body {
   background-clip: content-box;
 }
 
+.ant-table-tbody > tr.row-clickable {
+  cursor: pointer;
+}
 .ant-table-tbody > tr.row-clickable:hover > td {
   background: var(--brand-soft) !important;
+}
+/* کارت وقتی عنصری داخلش فوکوس می‌گیرد هم برجسته شود (پیمایش با کیبورد) */
+.card-interactive:focus-within {
+  border-color: var(--brand-line);
+  box-shadow: var(--shadow-2);
 }
 
 /* ───────────────────────────────────────────────────────────────
@@ -486,12 +561,15 @@ body {
   font-size: 14px;
   color: var(--text);
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
 .jalali-trigger:hover:not(:disabled) {
+  border-color: var(--brand);
+}
+.jalali-trigger:focus-visible {
   border-color: var(--brand);
 }
 .jalali-trigger:disabled {
@@ -561,12 +639,156 @@ body {
   color: #fff;
 }
 
+/* ───────────────────────────────────────────────────────────────
+   فرم‌ها — گروه‌بندی و چیدمان دوستونه تا کاربر اورلود نشود.
+   ─────────────────────────────────────────────────────────────── */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+@media (max-width: 560px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin: 2px 0 12px;
+}
+
+/* دکمه‌ی «جزئیات بیشتر» — بخش اختیاری را باز/بسته می‌کند */
+.form-expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 2px;
+  margin: 2px 0 10px;
+  border-radius: var(--radius-sm);
+}
+.form-expand:hover {
+  text-decoration: underline;
+}
+.form-expand .anticon {
+  font-size: 11px;
+  transition: transform 0.15s ease;
+}
+
+/* تنظیم بورد — کارت مدل‌های آماده و ردیف ستون‌ها */
+.preset-card {
+  text-align: start;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+}
+.preset-card:hover {
+  border-color: var(--brand-line);
+  box-shadow: var(--shadow-1);
+  transform: translateY(-1px);
+}
+.col-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+.col-row[data-off='true'] {
+  opacity: 0.55;
+  background: var(--surface-sunken);
+}
+.col-move {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 15px;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 9px;
+}
+.col-move:hover:not(:disabled) {
+  color: var(--brand);
+}
+.col-move:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* نوار تأیید در دراور — وقتی کار منتظر تأیید کاربر است، جلوی چشم و صریح */
+.review-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-line);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+.review-bar[data-tone='muted'] {
+  background: var(--surface-sunken);
+  border-color: var(--line-soft);
+}
+.review-bar-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* پیش‌نمایش زنده‌ی «تخمین → تاریخ تحویل» */
+.estimate-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text-muted);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-line);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  margin-bottom: 16px;
+}
+.estimate-preview strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* جداکننده‌ی نرم بین بخش الزامی و اختیاری */
+.form-divider {
+  height: 1px;
+  background: var(--line-soft);
+  margin: 4px 0 14px;
+}
+
 /* کلید میان‌بر در هدر */
 .kbd {
   font-family: var(--mono);
   font-size: 10.5px;
   padding: 1px 5px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-soft);
   border-bottom-width: 2px;
   border-radius: 4px;
   background: var(--surface-sunken);

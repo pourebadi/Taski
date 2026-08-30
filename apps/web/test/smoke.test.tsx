@@ -7,9 +7,8 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, waitFor, cleanup } from '@testing-library/react';
-import { ConfigProvider, App as AntApp } from 'antd';
-import faIR from 'antd/locale/fa_IR';
 import { MemoryRouter } from 'react-router-dom';
+import { ThemeProvider } from '../src/theme/ThemeProvider';
 import React from 'react';
 import dayjs from 'dayjs';
 import jalaliday from 'jalaliday';
@@ -31,7 +30,6 @@ it('toJalali با وجود تضاد پلاگین‌های dayjs سالم می‌
   expect(toJalali('کاملا-بی-معنا')).toBe('—');
 });
 
-import { theme } from '../src/theme';
 import { useAuth } from '../src/lib/auth-store';
 
 import MyWork from '../src/pages/MyWork';
@@ -175,12 +173,12 @@ afterEach(() => {
 });
 
 function mount(ui: React.ReactElement) {
+  // ThemeProvider خودش ConfigProvider(rtl+fa) و AntApp را فراهم می‌کند،
+  // پس مسیر واقعی برنامه تست می‌شود (شامل useThemeMode در AppShell).
   return render(
-    <ConfigProvider direction="rtl" locale={faIR} theme={theme}>
-      <AntApp>
-        <MemoryRouter>{ui}</MemoryRouter>
-      </AntApp>
-    </ConfigProvider>,
+    <ThemeProvider>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </ThemeProvider>,
   );
 }
 

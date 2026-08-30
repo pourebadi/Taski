@@ -14,7 +14,7 @@ export default function FieldLabel({ label, helpKey, help }: { label: string; he
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       {label}
       <Tooltip title={text} overlayStyle={{ maxWidth: 340 }}>
-        <InfoCircleOutlined style={{ color: '#8c8c8c', cursor: 'help', fontSize: 13 }} />
+        <InfoCircleOutlined style={{ color: 'var(--text-faint)', cursor: 'help', fontSize: 13 }} />
       </Tooltip>
     </span>
   );

@@ -13,7 +13,7 @@ export class AuthController {
   @Post('login')
   async login(@Body() body: unknown, @Req() req: any, @Res({ passthrough: true }) res: any) {
     const input = parseOrThrow(LoginSchema, body);
-    const result = await this.auth.login(input.email, input.password, req.headers['user-agent']);
+    const result = await this.auth.login(input.username, input.password, req.headers['user-agent']);
     res.cookie(COOKIE, result.refreshToken, {
       httpOnly: true,
       sameSite: 'lax',
