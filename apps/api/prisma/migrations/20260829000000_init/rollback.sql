@@ -1,0 +1,16 @@
+-- rollback: DROP TABLE به ترتیب معکوس وابستگی
+DROP TABLE IF EXISTS "ChangeRecord";
+DROP TABLE IF EXISTS "KeySequence";
+DROP TABLE IF EXISTS "AuditEvent";
+DROP TABLE IF EXISTS "Activity";
+DROP TABLE IF EXISTS "Comment";
+DROP TABLE IF EXISTS "CommitmentHistory";
+DROP TABLE IF EXISTS "WorkItem";
+DROP TABLE IF EXISTS "ProjectMember";
+DROP TABLE IF EXISTS "Project";
+DROP TABLE IF EXISTS "Session";
+DROP TABLE IF EXISTS "TeamMember";
+DROP TABLE IF EXISTS "User";
+DROP TABLE IF EXISTS "Team";
+DROP TABLE IF EXISTS "Holiday";
+DROP TABLE IF EXISTS "Organization";

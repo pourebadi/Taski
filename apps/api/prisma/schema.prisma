@@ -1,0 +1,323 @@
+// PE-OS — MVP schema (SQLite)
+// قانون: هیچ enum بومی. همه String + اعتبارسنجی Zod در لایه اپلیکیشن.
+// قانون: همه تاریخ‌ها UTC. نمایش شمسی فقط در فرانت.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id
+  name      String
+  timezone  String   @default("Asia/Tehran")
+  weekStart String   @default("SATURDAY")
+  // روزهای کاری: شنبه تا پنجشنبه. فقط جمعه تعطیل. (D-002)
+  workingDays String @default("SAT,SUN,MON,TUE,WED,THU")
+  createdAt DateTime @default(now())
+
+  users     User[]
+  teams     Team[]
+  projects  Project[]
+  workItems WorkItem[]
+  holidays  Holiday[]
+  keySeqs   KeySequence[]
+}
+
+model Holiday {
+  id             String       @id
+  organizationId String
+  date           DateTime // نیمه‌شب UTC روز تعطیل
+  title          String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, date])
+}
+
+model User {
+  id             String  @id
+  organizationId String
+  fullName       String
+  email          String  @unique
+  passwordHash   String
+  // سمت سازمانی — هیچ مجوزی نمی‌دهد (D: job title != permission)
+  jobTitle       String?
+  // نقش نرم‌افزاری: ORG_OWNER | ADMIN | PROJECT_MANAGER | TEAM_LEAD | CONTRIBUTOR | REQUESTER | VIEWER
+  role           String  @default("CONTRIBUTOR")
+  // ACTIVE | SUSPENDED | DISABLED
+  status         String  @default("ACTIVE")
+  mustChangePassword Boolean @default(true)
+  primaryTeamId  String?
+  weeklyCapacityHours Int  @default(40)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  primaryTeam    Team?        @relation("PrimaryTeam", fields: [primaryTeamId], references: [id])
+  teamMemberships TeamMember[]
+  sessions       Session[]
+  ownedItems     WorkItem[]   @relation("Owner")
+  assignedItems  WorkItem[]   @relation("Assignee")
+  reviewItems    WorkItem[]   @relation("Reviewer")
+  comments       Comment[]
+  commitments    CommitmentHistory[]
+  changeRecords  ChangeRecord[]
+  activities     Activity[]
+
+  @@index([organizationId, status])
+}
+
+model Team {
+  id             String @id
+  organizationId String
+  name           String
+  leadId         String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  members      TeamMember[]
+  primaryOf    User[]       @relation("PrimaryTeam")
+  workItems    WorkItem[]
+
+  @@unique([organizationId, name])
+}
+
+model TeamMember {
+  id     String @id
+  teamId String
+  userId String
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+}
+
+model Session {
+  id               String   @id
+  userId           String
+  refreshTokenHash String
+  userAgent        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+}
+
+model Project {
+  id             String  @id
+  organizationId String
+  key            String // پیشوند کلید کارها، مثل BE
+  name           String
+  nameNormalized String
+  description    String?
+  // ACTIVE | ON_HOLD | DONE | CANCELLED
+  status         String  @default("ACTIVE")
+  ownerId        String?
+  targetDate     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  members      ProjectMember[]
+  workItems    WorkItem[]
+
+  @@unique([organizationId, key])
+}
+
+model ProjectMember {
+  id        String  @id
+  projectId String
+  userId    String
+  // PROJECT_LEAD | MEMBER | STAKEHOLDER
+  role      String  @default("MEMBER")
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model WorkItem {
+  id             String  @id
+  organizationId String
+  // کار بدون پروژه مجاز است (D-005)
+  projectId      String?
+  parentId       String?
+  teamId         String?
+  key            String
+  title          String
+  titleNormalized String
+  description    String?
+
+  // FEATURE | BUG | TASK | SUPPORT | TECH_DEBT | INFRA
+  workType       String  @default("TASK")
+  // PRODUCT | TECH_DEBT | SUPPORT | INFRASTRUCTURE
+  workStream     String
+  // INBOX|BACKLOG|READY|IN_PROGRESS|IN_REVIEW|IN_QA|DONE|CANCELLED
+  workflowState  String  @default("BACKLOG")
+  // ON_TRACK | AT_RISK | BLOCKED | UNKNOWN — مستقل از workflowState
+  deliveryHealth String  @default("ON_TRACK")
+  healthNote     String?
+  // P0 | P1 | P2 | P3
+  priority       String  @default("P2")
+
+  ownerId           String?
+  primaryAssigneeId String?
+  reviewerId        String?
+
+  // بازبینی اختیاری — سازنده تعیین می‌کند (D-005)
+  requiresReview Boolean @default(false)
+  requiresQa     Boolean @default(false)
+
+  startDate       DateTime?
+  dueDate         DateTime?
+  currentEta      DateTime?
+  firstCommittedEta DateTime? // immutable پس از اولین ثبت
+  activeBaselineEta DateTime? // پس از RE_BASELINE به‌روز می‌شود
+  // HIGH | MEDIUM | LOW
+  etaConfidence   String?
+  etaAssumptions  String?
+  estimateHours   Float?
+
+  acceptanceCriteria String?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastActivityAt  DateTime  @default(now())
+  completedAt     DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  project      Project?     @relation(fields: [projectId], references: [id])
+  team         Team?        @relation(fields: [teamId], references: [id])
+  parent       WorkItem?    @relation("Subtasks", fields: [parentId], references: [id])
+  children     WorkItem[]   @relation("Subtasks")
+  owner        User?        @relation("Owner", fields: [ownerId], references: [id])
+  assignee     User?        @relation("Assignee", fields: [primaryAssigneeId], references: [id])
+  reviewer     User?        @relation("Reviewer", fields: [reviewerId], references: [id])
+
+  commitments CommitmentHistory[]
+  changes     ChangeRecord[]
+  comments    Comment[]
+  activities  Activity[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId, workflowState])
+  @@index([primaryAssigneeId, workflowState])
+  @@index([projectId])
+}
+
+/// تاریخچه تعهد — قلب محصول. فقط افزودنی. حذف و ویرایش ممنوع. (PM-C6)
+model CommitmentHistory {
+  id         String @id
+  workItemId String
+  versionNo  Int
+  // ETA | ESTIMATE | BOTH | RE_BASELINE
+  changeKind String
+
+  previousEta      DateTime?
+  newEta           DateTime?
+  deltaWorkingDays Int?
+
+  previousEstimateHours Float?
+  newEstimateHours      Float?
+
+  // SCOPE_CHANGE|BLOCKER|DEPENDENCY|PRIORITY_CHANGE|SUPPORT_INTERRUPT|RE_ESTIMATION|EXTERNAL
+  reasonType String
+  reasonText String?
+  confidence String?
+
+  changedById String
+  createdAt   DateTime @default(now())
+
+  workItem  WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  changedBy User     @relation(fields: [changedById], references: [id])
+
+  @@unique([workItemId, versionNo])
+  @@index([workItemId])
+}
+
+/// دفتر تغییرات مهم — هر تغییری که باید بعداً بشود به آن رجوع کرد.
+/// جدا از CommitmentHistory که فقط تاریخ و تخمین را نگه می‌دارد.
+model ChangeRecord {
+  id         String @id
+  workItemId String
+  // PRIORITY | DUE_DATE | ASSIGNEE | OWNER | REVIEWER | STATE | CANCEL | SCOPE | PROJECT
+  field      String
+  fromValue  String?
+  toValue    String?
+  fromLabel  String?
+  toLabel    String?
+  // علت از فهرست بسته، مشترک با CommitmentHistory
+  reasonType String
+  reasonText String?
+  /// کاری که به‌خاطر این تغییر عقب افتاد — قانون «کار جابه‌جاشده»
+  displacedWorkItemId String?
+  changedById String
+  createdAt   DateTime @default(now())
+
+  workItem  WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  changedBy User     @relation(fields: [changedById], references: [id])
+
+  @@index([workItemId])
+  @@index([field, createdAt])
+}
+
+model Comment {
+  id         String   @id
+  workItemId String
+  authorId   String
+  body       String
+  createdAt  DateTime @default(now())
+
+  workItem WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  author   User     @relation(fields: [authorId], references: [id])
+
+  @@index([workItemId])
+}
+
+model Activity {
+  id         String   @id
+  workItemId String
+  actorId    String?
+  // STATE_CHANGED | HEALTH_CHANGED | ASSIGNED | PRIORITY_CHANGED | ETA_CHANGED | CREATED | COMMENTED
+  action     String
+  fromValue  String?
+  toValue    String?
+  createdAt  DateTime @default(now())
+
+  workItem WorkItem @relation(fields: [workItemId], references: [id], onDelete: Cascade)
+  actor    User?    @relation(fields: [actorId], references: [id])
+
+  @@index([workItemId])
+}
+
+model AuditEvent {
+  id         String   @id
+  actorId    String?
+  entityType String
+  entityId   String?
+  action     String
+  beforeJson String?
+  afterJson  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}
+
+model KeySequence {
+  id             String @id
+  organizationId String
+  prefix         String
+  lastNumber     Int    @default(0)
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, prefix])
+}
