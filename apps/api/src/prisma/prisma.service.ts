@@ -8,10 +8,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
   async onModuleInit() {
     await this.$connect();
-    await this.$executeRawUnsafe('PRAGMA journal_mode = WAL;');
-    await this.$executeRawUnsafe('PRAGMA busy_timeout = 5000;');
-    await this.$executeRawUnsafe('PRAGMA foreign_keys = ON;');
-    await this.$executeRawUnsafe('PRAGMA synchronous = NORMAL;');
+    // PRAGMAهایی که مقدار برمی‌گردانند باید با queryRawUnsafe اجرا شوند.
+    await this.$queryRawUnsafe('PRAGMA journal_mode = WAL;');
+    await this.$queryRawUnsafe('PRAGMA busy_timeout = 5000;');
+    await this.$queryRawUnsafe('PRAGMA foreign_keys = ON;');
+    await this.$queryRawUnsafe('PRAGMA synchronous = NORMAL;');
     this.logger.log('SQLite pragmas applied: WAL, busy_timeout=5000, foreign_keys=ON, synchronous=NORMAL');
   }
 }
