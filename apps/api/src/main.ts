@@ -19,6 +19,10 @@ async function bootstrap() {
     if (process.env.ADMIN_PASSWORD === 'Admin12345!') {
       throw new Error('رمز پیش‌فرض در محیط production مجاز نیست. برنامه متوقف شد.');
     }
+    // بدون این بررسی، اپ بالا می‌آمد و تازه سر اولین login خطای ۵۰۰ می‌داد.
+    if (!process.env.JWT_ACCESS_SECRET) {
+      throw new Error('JWT_ACCESS_SECRET تنظیم نشده است. برنامه متوقف شد.');
+    }
   }
 
   const app = await NestFactory.create(AppModule);

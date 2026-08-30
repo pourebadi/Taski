@@ -13,7 +13,8 @@ function svcWith(item: any, extra: any = {}) {
   const prisma: any = {
     workItem: { findFirst: vi.fn().mockResolvedValue(item), update: vi.fn().mockResolvedValue(item) },
     commitmentHistory: { findFirst: vi.fn().mockResolvedValue({ versionNo: 2 }), create: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
-    activity: { create: vi.fn() },
+    // findFirst لازم است چون قانون بازبینی حالا تاریخچه‌ی عبور از IN_REVIEW را می‌خواند
+    activity: { create: vi.fn(), findFirst: vi.fn().mockResolvedValue(null) },
     changeRecord: { create: vi.fn() },
     ...extra,
   };

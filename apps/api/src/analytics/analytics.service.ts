@@ -90,7 +90,9 @@ export class AnalyticsService {
   }
 
   /** بی‌ثباتی برنامه: کدام کارها بیشترین جابه‌جایی تاریخ را داشته‌اند. */
-  async scheduleStability(actor: Actor, limit = 10) {
+  async scheduleStability(actor: Actor, rawLimit = 10) {
+    // limit=abc قبلاً NaN می‌شد و جدول همیشه خالی برمی‌گشت.
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(Math.trunc(rawLimit), 1), 100) : 10;
     const history = await this.prisma.commitmentHistory.findMany({
       where: {
         changeKind: { in: ['ETA', 'BOTH'] },
@@ -192,7 +194,9 @@ export class AnalyticsService {
   }
 
   /** روند تحویل هفتگی — چند کار در هر هفته بسته شد. */
-  async throughput(actor: Actor, weeks = 8) {
+  async throughput(actor: Actor, rawWeeks = 8) {
+    // weeks=1e9 قبلاً یک حلقه‌ی میلیاردی می‌ساخت و رانتایم را قفل می‌کرد.
+    const weeks = Number.isFinite(rawWeeks) ? Math.min(Math.max(Math.trunc(rawWeeks), 1), 104) : 8;
     const done = await this.prisma.workItem.findMany({
       where: { organizationId: actor.organizationId, workflowState: 'DONE', completedAt: { not: null } },
       select: { completedAt: true, workStream: true },

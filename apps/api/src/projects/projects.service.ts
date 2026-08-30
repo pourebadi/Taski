@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppError } from '../common/errors';
 import { normalizeFa } from '../common/text';
 import { Role } from '../common/constants';
+import { parseOrThrow, CreateProjectSchema, UpdateProjectSchema } from '../common/validation';
 
 type Actor = { id: string; role: Role; organizationId: string };
 
@@ -39,7 +40,9 @@ export class ProjectsService {
     });
   }
 
-  async create(actor: Actor, input: CreateProjectInput) {
+  async create(actor: Actor, raw: CreateProjectInput) {
+    // بدون این، نبودِ key یا name به TypeError و پاسخ ۵۰۰ ختم می‌شد.
+    const input = parseOrThrow(CreateProjectSchema, raw) as CreateProjectInput;
     const key = input.key.trim().toUpperCase();
     if (!/^[A-Z]{2,6}$/.test(key)) {
       throw new AppError(422, 'INVALID_KEY', 'کلید پروژه باید ۲ تا ۶ حرف انگلیسی باشد.');
@@ -108,6 +111,10 @@ export class ProjectsService {
 
   async addMember(actor: Actor, projectId: string, userId: string, role = 'MEMBER') {
     await this.assertAccess(actor, projectId);
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, organizationId: actor.organizationId },
+    });
+    if (!user) throw new AppError(422, 'USER_NOT_FOUND', 'کاربر انتخاب‌شده در این سازمان پیدا نشد.');
     const exists = await this.prisma.projectMember.findUnique({
       where: { projectId_userId: { projectId, userId } },
     });
@@ -117,7 +124,8 @@ export class ProjectsService {
     });
   }
 
-  async update(actor: Actor, projectId: string, data: Partial<CreateProjectInput> & { status?: string }) {
+  async update(actor: Actor, projectId: string, raw: Partial<CreateProjectInput> & { status?: string }) {
+    const data = parseOrThrow(UpdateProjectSchema, raw) as Partial<CreateProjectInput> & { status?: string };
     await this.assertAccess(actor, projectId);
     return this.prisma.project.update({
       where: { id: projectId },
@@ -127,7 +135,9 @@ export class ProjectsService {
         description: data.description,
         ownerId: data.ownerId ?? undefined,
         status: data.status,
-        targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
+        // null یعنی «تاریخ هدف را پاک کن»؛ undefined یعنی «دست نزن».
+        targetDate:
+          data.targetDate === undefined ? undefined : data.targetDate ? new Date(data.targetDate) : null,
       },
     });
   }

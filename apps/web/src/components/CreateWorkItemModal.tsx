@@ -64,6 +64,7 @@ export default function CreateWorkItemModal({
       okText={t('common.save')}
       cancelText={t('common.cancel')}
       width={620}
+      destroyOnClose
     >
       <Form form={form} layout="vertical" requiredMark={false} initialValues={{ priority: 'P2', workType: 'TASK' }}>
         <Form.Item name="title" label={<FieldLabel label="عنوان" helpKey="title" />} rules={[{ required: true, message: 'یک عنوان بنویس تا بعداً بشود پیدایش کرد.' }]}>

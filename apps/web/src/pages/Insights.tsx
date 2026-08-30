@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Card, Col, Empty, Row, Segmented, Space, Statistic, Table, Tag, Tooltip, Typography } from 'antd';
+import { Alert, Card, Col, Empty, Row, Segmented, Space, Spin, Statistic, Table, Tag, Tooltip, Typography } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
@@ -11,10 +11,12 @@ import { HELP } from '../lib/help';
 import { faDigits } from '../lib/date';
 import { useAuth } from '../lib/auth-store';
 
+// رنگ‌ها از همان توکن‌های تم می‌آیند تا نمودار و بقیه‌ی رابط یکی باشند
 const HEALTH_COLORS: Record<string, string> = {
-  ON_TRACK: '#52c41a', AT_RISK: '#faad14', BLOCKED: '#f5222d', UNKNOWN: '#bfbfbf',
+  ON_TRACK: '#17795e', AT_RISK: '#a35a06', BLOCKED: '#b42318', UNKNOWN: '#9aa5a1',
 };
-const STREAM_COLORS = ['#1c6758', '#3d8361', '#a0c49d', '#d6efc7'];
+const STREAM_COLORS = ['#14675a', '#3f8f7d', '#7fb8a7', '#bcdbd1'];
+const BRAND = '#14675a';
 
 type Overview = {
   totals: Record<string, number>;
@@ -56,33 +58,66 @@ export default function Insights() {
   const [reasons, setReasons] = useState<Reasons | null>(null);
   const [workload, setWorkload] = useState<Workload>([]);
   const [throughput, setThroughput] = useState<{ weekStart: string; count: number }[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   useEffect(() => {
-    api<Overview>('/analytics/overview').then(setOverview).catch(() => setOverview(null));
+    setStatus('loading');
+    api<Overview>('/analytics/overview')
+      .then((d) => {
+        setOverview(d);
+        setStatus('ready');
+      })
+      .catch(() => {
+        setOverview(null);
+        setStatus('error');
+      });
     api<Stability>('/analytics/schedule-stability').then(setStability).catch(() => setStability([]));
     api<Reasons>('/analytics/delay-reasons').then(setReasons).catch(() => setReasons(null));
     api<any[]>('/analytics/throughput').then(setThroughput).catch(() => setThroughput([]));
     if (canSeeTeam) api<Workload>('/analytics/team-workload').then(setWorkload).catch(() => setWorkload([]));
   }, [canSeeTeam]);
 
-  if (!overview) return <Empty description="هنوز داده‌ای برای نمایش نیست. چند کار ثبت کنید تا نمودارها پر شوند." />;
+  // پیش‌تر خطای شبکه و «داده‌ای نیست» هر دو یک پیام می‌دادند و عملاً
+  // یک صفحه‌ی خراب به‌نظر خالی می‌رسید.
+  if (status === 'loading') {
+    return (
+      <div style={{ display: 'grid', placeItems: 'center', minHeight: 240 }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+  if (status === 'error' || !overview) {
+    return (
+      <Alert
+        type="error"
+        showIcon
+        message="آمار بارگذاری نشد."
+        description="ارتباط با سرور برقرار نشد یا دسترسی لازم را ندارید. صفحه را دوباره باز کنید."
+      />
+    );
+  }
 
   const { totals, commitmentAccuracy: acc } = overview;
 
   return (
     <>
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
-        <Typography.Title level={4} style={{ margin: 0 }}>تصویر کلی</Typography.Title>
+      <div className="page-head">
+        <div>
+          <h1 className="page-title">تصویر کلی</h1>
+          <p className="page-subtitle">
+            این صفحه برای تصمیم گرفتن است، نه برای امتیاز دادن به افراد.
+          </p>
+        </div>
         <Segmented
           value={tab}
           onChange={(v) => setTab(String(v))}
           options={canSeeTeam ? ['سازمان', 'برنامه‌ریزی', 'تیم'] : ['سازمان', 'برنامه‌ریزی']}
         />
-      </Space>
+      </div>
 
       {tab === 'سازمان' && (
         <>
-          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+          <div className="stat-grid" style={{ marginBottom: 16 }}>
             {[
               ['کار در جریان', totals.active, null],
               ['مسدود', totals.blocked, 'blockedRatio'],
@@ -91,7 +126,7 @@ export default function Insights() {
               ['بی‌خبر', totals.stale, 'staleItems'],
               ['بدون مجری', totals.unassigned, null],
             ].map(([label, value, help]) => (
-              <Col key={String(label)} xs={12} md={4}>
+              <div key={String(label)}>
                 <Card size="small">
                   <Statistic
                     title={<>{label}{help ? <Help k={String(help)} /> : null}</>}
@@ -101,9 +136,9 @@ export default function Insights() {
                     }}
                   />
                 </Card>
-              </Col>
+              </div>
             ))}
-          </Row>
+          </div>
 
           {totals.blocked > 0 && (
             <Alert
@@ -170,7 +205,7 @@ export default function Insights() {
                     <XAxis dataKey="label" tick={{ fontSize: 11 }} reversed />
                     <YAxis orientation="right" allowDecimals={false} />
                     <RTooltip />
-                    <Bar dataKey="count" name="تعداد" fill="#1c6758" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="count" name="تعداد" fill={BRAND} radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </Card>
@@ -184,7 +219,7 @@ export default function Insights() {
                     <XAxis dataKey="weekStart" tick={{ fontSize: 10 }} reversed />
                     <YAxis orientation="right" allowDecimals={false} />
                     <RTooltip />
-                    <Line type="monotone" dataKey="count" name="تحویل" stroke="#1c6758" strokeWidth={2} />
+                    <Line type="monotone" dataKey="count" name="تحویل" stroke={BRAND} strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>
               </Card>
@@ -249,8 +284,8 @@ export default function Insights() {
                       <YAxis type="category" dataKey="label" width={95} tick={{ fontSize: 11 }} orientation="right" />
                       <RTooltip />
                       <Legend />
-                      <Bar dataKey="totalDays" name="روز کاری عقب‌افتادگی" fill="#f5222d" radius={[0, 4, 4, 0]} />
-                      <Bar dataKey="count" name="دفعات" fill="#1c6758" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="totalDays" name="روز کاری عقب‌افتادگی" fill="#b42318" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" name="دفعات" fill={BRAND} radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -268,7 +303,7 @@ export default function Insights() {
                       <XAxis dataKey="label" reversed tick={{ fontSize: 11 }} />
                       <YAxis orientation="right" allowDecimals={false} />
                       <RTooltip />
-                      <Bar dataKey="count" name="دفعات تغییر" fill="#faad14" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="count" name="دفعات تغییر" fill="#a35a06" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (

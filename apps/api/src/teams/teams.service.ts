@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppError } from '../common/errors';
 import { Role } from '../common/constants';
+import { parseOrThrow, CreateTeamSchema } from '../common/validation';
 
 type Actor = { id: string; role: Role; organizationId: string };
 
@@ -18,7 +19,13 @@ export class TeamsService {
     });
   }
 
-  async create(actor: Actor, name: string, leadId?: string | null) {
+  async create(actor: Actor, rawName: string, rawLeadId?: string | null) {
+    // name خالی قبلاً TypeError و ۵۰۰ می‌داد.
+    const input = parseOrThrow(CreateTeamSchema, { name: rawName, leadId: rawLeadId });
+    const name = input.name;
+    const leadId = input.leadId ?? null;
+    if (leadId) await this.assertUserInOrg(actor, leadId);
+
     const exists = await this.prisma.team.findFirst({
       where: { organizationId: actor.organizationId, name: name.trim() },
     });
@@ -35,6 +42,7 @@ export class TeamsService {
   /** تغییر سرپرست تیم Audit می‌شود. (PRD 6.3) */
   async setLead(actor: Actor, teamId: string, leadId: string) {
     const team = await this.mustFind(actor, teamId);
+    await this.assertUserInOrg(actor, leadId);
     const updated = await this.prisma.team.update({ where: { id: teamId }, data: { leadId } });
     await this.prisma.auditEvent.create({
       data: {
@@ -53,6 +61,7 @@ export class TeamsService {
 
   async addMember(actor: Actor, teamId: string, userId: string) {
     await this.mustFind(actor, teamId);
+    await this.assertUserInOrg(actor, userId);
     const exists = await this.prisma.teamMember.findUnique({
       where: { teamId_userId: { teamId, userId } },
     });
@@ -67,6 +76,14 @@ export class TeamsService {
     }
     await this.prisma.teamMember.deleteMany({ where: { teamId, userId } });
     return { ok: true };
+  }
+
+  /** عضو تیم باید در همان سازمان باشد؛ وگرنه خطای FK به ۵۰۰ تبدیل می‌شد. */
+  private async assertUserInOrg(actor: Actor, userId: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, organizationId: actor.organizationId },
+    });
+    if (!user) throw new AppError(422, 'USER_NOT_FOUND', 'کاربر انتخاب‌شده در این سازمان پیدا نشد.');
   }
 
   private async mustFind(actor: Actor, teamId: string) {

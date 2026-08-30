@@ -90,6 +90,7 @@ export default function TrackedChangeModal({
       onCancel={onClose}
       onOk={submit}
       confirmLoading={saving}
+      destroyOnClose
       okText={t('common.save')}
       cancelText={t('common.cancel')}
     >
@@ -106,9 +107,11 @@ export default function TrackedChangeModal({
           </Form.Item>
         )}
 
+        {/* مقدار اولیه از طریق Form داده می‌شود؛ defaultValue روی کنترل داخلِ
+            Form.Item توسط antd نادیده گرفته می‌شود و فقط هشدار کنسول می‌دهد. */}
         {kind === 'DUE_DATE' && (
-          <Form.Item name="dueDate" label={<FieldLabel label="مهلت جدید" helpKey="dueDate" />}>
-            <DatePicker style={{ width: '100%' }} defaultValue={dayjs()} />
+          <Form.Item name="dueDate" label={<FieldLabel label="مهلت جدید" helpKey="dueDate" />} initialValue={dayjs()}>
+            <DatePicker style={{ width: '100%' }} />
           </Form.Item>
         )}
 

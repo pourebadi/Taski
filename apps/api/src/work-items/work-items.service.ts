@@ -8,6 +8,16 @@ import { normalizeFa } from '../common/text';
 import { ALLOWED_TRANSITIONS, WorkflowState, CommitmentReason, ACTIVE_STATES, STALE_AFTER_WORKING_DAYS, REASON_REQUIRED_FIELDS, TrackedField } from '../common/constants';
 import { can } from '../authorization/permissions';
 import { Role } from '../common/constants';
+import {
+  parseOrThrow,
+  CreateWorkItemSchema,
+  UpdateWorkItemSchema,
+  ChangeStateSchema,
+  ChangeHealthSchema,
+  ChangeCommitmentSchema,
+  ReBaselineSchema,
+  CommentSchema,
+} from '../common/validation';
 
 type Actor = { id: string; role: Role; organizationId: string };
 
@@ -48,7 +58,14 @@ export class WorkItemsService {
 
   // ---------- ساخت ----------
 
-  async create(actor: Actor, input: CreateWorkItemInput) {
+  async create(actor: Actor, raw: CreateWorkItemInput) {
+    const input = parseOrThrow(CreateWorkItemSchema, raw) as CreateWorkItemInput;
+
+    // مالک/مجری/بازبین باید واقعاً در همین سازمان باشند، وگرنه قبلاً خطای FK
+    // پریسما به‌صورت ۵۰۰ «خطای غیرمنتظره» به کاربر می‌رسید.
+    await this.assertUsersInOrg(actor, [input.ownerId, input.primaryAssigneeId, input.reviewerId]);
+    if (input.teamId) await this.assertTeamInOrg(actor, input.teamId);
+
     // کار بدون پروژه مجاز است؛ در آن صورت پیشوند سازمانی TASK استفاده می‌شود. (D-005)
     let prefix = 'TASK';
     if (input.projectId) {
@@ -116,7 +133,17 @@ export class WorkItemsService {
 
   // ---------- گذار وضعیت ----------
 
-  async changeState(actor: Actor, id: string, next: WorkflowState, reason?: { reasonType: CommitmentReason; reasonText?: string }) {
+  async changeState(actor: Actor, id: string, rawNext: WorkflowState, rawReason?: { reasonType: CommitmentReason; reasonText?: string }) {
+    const parsed = parseOrThrow(ChangeStateSchema, {
+      state: rawNext,
+      reasonType: rawReason?.reasonType,
+      reasonText: rawReason?.reasonText,
+    });
+    const next = parsed.state as WorkflowState;
+    const reason = parsed.reasonType
+      ? { reasonType: parsed.reasonType as CommitmentReason, reasonText: parsed.reasonText ?? undefined }
+      : undefined;
+
     const item = await this.mustFind(actor, id);
     const current = item.workflowState as WorkflowState;
 
@@ -133,12 +160,20 @@ export class WorkItemsService {
     }
 
     // بازبینی اختیاری است، ولی اگر لازم شده باشد نمی‌توان از آن پرید. (D-005)
-    if (next === 'DONE' && item.requiresReview && current === 'IN_PROGRESS') {
-      throw new AppError(
-        422,
-        'REVIEW_REQUIRED',
-        'این کار نیاز به بازبینی دارد و نمی‌تواند مستقیم به «انجام شده» برود.',
-      );
+    // شرط قبلی فقط گذار مستقیم IN_PROGRESS → DONE را می‌بست، پس مسیر
+    // IN_PROGRESS → IN_QA → DONE بازبینی را کامل دور می‌زد. حالا ملاک این است
+    // که کار واقعاً یک بار از IN_REVIEW عبور کرده باشد، نه اینکه همین حالا آنجا باشد.
+    if (next === 'DONE' && item.requiresReview && current !== 'IN_REVIEW') {
+      const reviewed = await this.prisma.activity.findFirst({
+        where: { workItemId: id, action: 'STATE_CHANGED', toValue: 'IN_REVIEW' },
+      });
+      if (!reviewed) {
+        throw new AppError(
+          422,
+          'REVIEW_REQUIRED',
+          'این کار نیاز به بازبینی دارد و نمی‌تواند بدون عبور از مرحله بازبینی به «انجام شده» برود.',
+        );
+      }
     }
     if (next === 'DONE' && item.requiresQa && current !== 'IN_QA') {
       throw new AppError(422, 'QA_REQUIRED', 'این کار باید ابتدا از مرحله QA عبور کند.');
@@ -149,7 +184,10 @@ export class WorkItemsService {
         where: { id },
         data: {
           workflowState: next,
-          completedAt: next === 'DONE' ? new Date() : null,
+          // تاریخ اتمام فقط وقتی پاک می‌شود که کار واقعاً از حالت «انجام شده» خارج شود.
+          // پیش‌تر هر گذاری آن را null می‌کرد و تاریخ تحویل واقعی از بین می‌رفت.
+          completedAt:
+            next === 'DONE' ? new Date() : current === 'DONE' ? null : item.completedAt,
           lastActivityAt: new Date(),
         },
       });
@@ -183,7 +221,10 @@ export class WorkItemsService {
 
   // ---------- سلامت تحویل ----------
 
-  async changeHealth(actor: Actor, id: string, health: string, note?: string) {
+  async changeHealth(actor: Actor, id: string, rawHealth: string, rawNote?: string) {
+    const parsed = parseOrThrow(ChangeHealthSchema, { health: rawHealth, note: rawNote });
+    const health = parsed.health;
+    const note = parsed.note ?? undefined;
     const item = await this.mustFind(actor, id);
 
     if ((health === 'AT_RISK' || health === 'BLOCKED') && !note?.trim()) {
@@ -215,7 +256,8 @@ export class WorkItemsService {
    * تنها مسیر تغییر ETA و تخمین.
    * هیچ متد دیگری اجازه نوشتن روی currentEta یا estimateHours ندارد. (PM-C6)
    */
-  async changeCommitment(actor: Actor, id: string, input: ChangeCommitmentInput) {
+  async changeCommitment(actor: Actor, id: string, raw: ChangeCommitmentInput) {
+    const input = parseOrThrow(ChangeCommitmentSchema, raw) as ChangeCommitmentInput;
     const item = await this.mustFind(actor, id);
 
     const etaChanged =
@@ -301,7 +343,10 @@ export class WorkItemsService {
   /**
    * Re-baseline صریح. Baseline اول هرگز پاک نمی‌شود؛ فقط baseline فعال جابه‌جا می‌شود. (D-005، PM-C7)
    */
-  async reBaseline(actor: Actor, id: string, newBaseline: string, reasonText: string) {
+  async reBaseline(actor: Actor, id: string, rawBaseline: string, rawReasonText: string) {
+    const parsed = parseOrThrow(ReBaselineSchema, { newBaseline: rawBaseline, reasonText: rawReasonText });
+    const newBaseline = parsed.newBaseline;
+    const reasonText = parsed.reasonText ?? '';
     if (!can(actor.role, 'workitem.rebaseline')) {
       throw new AppError(403, 'FORBIDDEN', 'فقط مدیر پروژه یا بالاتر می‌تواند Baseline را بازتعریف کند.');
     }
@@ -410,12 +455,17 @@ export class WorkItemsService {
         orderBy: [{ currentEta: 'asc' }],
       }),
     ]);
-    return { inProgress, awaitingMyReview, overdue };
+    const [a, b, c] = await Promise.all([
+      this.withDrift(actor.organizationId, inProgress),
+      this.withDrift(actor.organizationId, awaitingMyReview),
+      this.withDrift(actor.organizationId, overdue),
+    ]);
+    return { inProgress: a, awaitingMyReview: b, overdue: c };
   }
 
   async search(actor: Actor, query: string, take = 50) {
     const q = normalizeFa(query);
-    return this.prisma.workItem.findMany({
+    const rows = await this.prisma.workItem.findMany({
       where: {
         organizationId: actor.organizationId,
         OR: [{ titleNormalized: { contains: q } }, { key: { contains: query.toUpperCase() } }],
@@ -423,6 +473,7 @@ export class WorkItemsService {
       take,
       orderBy: { lastActivityAt: 'desc' },
     });
+    return this.withDrift(actor.organizationId, rows);
   }
 
   // ---------- فهرست و جزئیات ----------
@@ -440,7 +491,7 @@ export class WorkItemsService {
       includeClosed?: boolean;
     } = {},
   ) {
-    return this.prisma.workItem.findMany({
+    const rows = await this.prisma.workItem.findMany({
       where: {
         organizationId: actor.organizationId,
         ...(filters.projectId === 'none' ? { projectId: null } : filters.projectId ? { projectId: filters.projectId } : {}),
@@ -454,6 +505,7 @@ export class WorkItemsService {
       orderBy: [{ priority: 'asc' }, { lastActivityAt: 'desc' }],
       take: 500,
     });
+    return this.withDrift(actor.organizationId, rows);
   }
 
   /** جزئیات کامل یک کار همراه تاریخچه تعهد، فعالیت و کامنت‌ها. */
@@ -481,7 +533,9 @@ export class WorkItemsService {
         orderBy: { createdAt: 'asc' },
         include: { author: { select: { id: true, fullName: true } } },
       }),
-      this.prisma.workItem.findMany({ where: { parentId: id } }),
+      this.prisma.workItem.findMany({
+        where: { parentId: id, organizationId: actor.organizationId },
+      }),
       this.scheduleMetrics(actor, id),
     ]);
     return { item, commitments, changes, activities, comments, children, metrics };
@@ -514,7 +568,11 @@ export class WorkItemsService {
       displacedWorkItemId?: string | null;
     },
   ) {
+    input = parseOrThrow(UpdateWorkItemSchema, input) as typeof input;
     const item = await this.mustFind(actor, id);
+
+    await this.assertUsersInOrg(actor, [input.ownerId, input.primaryAssigneeId, input.reviewerId]);
+    if (input.teamId) await this.assertTeamInOrg(actor, input.teamId);
 
     if (input.priority && input.priority !== item.priority && !can(actor.role, 'workitem.priority.set')) {
       throw new AppError(403, 'FORBIDDEN', 'تغییر اولویت فقط توسط سرپرست تیم یا بالاتر ممکن است.');
@@ -561,7 +619,11 @@ export class WorkItemsService {
           teamId: input.teamId,
           requiresReview: input.requiresReview,
           requiresQa: input.requiresQa,
-          dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
+          // پاک کردن مهلت باید ممکن باشد: undefined یعنی «دست نزن»،
+          // null یعنی «خالی کن». قبلاً null هم به undefined تبدیل می‌شد و
+          // تغییر در دفتر ثبت می‌شد ولی روی رکورد اعمال نمی‌شد.
+          dueDate:
+            input.dueDate === undefined ? undefined : input.dueDate ? new Date(input.dueDate) : null,
           acceptanceCriteria: input.acceptanceCriteria,
           lastActivityAt: new Date(),
         },
@@ -597,9 +659,10 @@ export class WorkItemsService {
     });
   }
 
-  async addComment(actor: Actor, id: string, body: string) {
+  async addComment(actor: Actor, id: string, rawBody: string) {
     await this.mustFind(actor, id);
-    if (!body?.trim()) throw new AppError(422, 'EMPTY_COMMENT', 'متن دیدگاه خالی است.');
+    if (!rawBody?.trim()) throw new AppError(422, 'EMPTY_COMMENT', 'متن دیدگاه خالی است.');
+    const body = parseOrThrow(CommentSchema, { body: rawBody }).body;
 
     return this.prisma.$transaction(async (tx) => {
       const comment = await tx.comment.create({
@@ -636,6 +699,45 @@ export class WorkItemsService {
       data: { deliveryHealth: 'UNKNOWN', healthNote: 'بیش از حد مجاز بدون به‌روزرسانی مانده است.' },
     });
     return stale.length;
+  }
+
+  /**
+   * انحراف تعهد را به فهرست اضافه می‌کند تا کارت‌ها بتوانند بدون یک
+   * درخواست جداگانه به‌ازای هر کار، جابه‌جایی تاریخ را نشان دهند.
+   * محاسبه در حافظه انجام می‌شود و تعطیلات یک بار بارگذاری می‌شود.
+   */
+  private async withDrift<T extends { firstCommittedEta: Date | null; currentEta: Date | null }>(
+    organizationId: string,
+    rows: T[],
+  ): Promise<(T & { driftWorkingDays: number | null })[]> {
+    if (rows.length === 0) return [];
+    const holidays = await this.calendar.loadHolidays(organizationId);
+    return rows.map((r) => ({
+      ...r,
+      driftWorkingDays:
+        r.firstCommittedEta && r.currentEta
+          ? this.calendar.countWorkingDays(r.firstCommittedEta, r.currentEta, holidays)
+          : null,
+    }));
+  }
+
+  /** ارجاع به کاربر خارج از سازمان یا ناموجود باید ۴۲۲ بدهد، نه ۵۰۰. */
+  private async assertUsersInOrg(actor: Actor, ids: (string | null | undefined)[]) {
+    const wanted = [...new Set(ids.filter((v): v is string => !!v))];
+    if (wanted.length === 0) return;
+    const found = await this.prisma.user.count({
+      where: { id: { in: wanted }, organizationId: actor.organizationId },
+    });
+    if (found !== wanted.length) {
+      throw new AppError(422, 'USER_NOT_FOUND', 'یکی از افراد انتخاب‌شده در این سازمان پیدا نشد.');
+    }
+  }
+
+  private async assertTeamInOrg(actor: Actor, teamId: string) {
+    const team = await this.prisma.team.findFirst({
+      where: { id: teamId, organizationId: actor.organizationId },
+    });
+    if (!team) throw new AppError(422, 'TEAM_NOT_FOUND', 'تیم انتخاب‌شده پیدا نشد.');
   }
 
   private async mustFind(actor: Actor, id: string) {

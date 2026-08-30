@@ -60,7 +60,11 @@ export class AuthService {
     };
   }
 
-  async refresh(refreshToken: string) {
+  async refresh(refreshToken?: string | null) {
+    // بدون کوکی، hashToken قبلاً TypeError می‌داد و به‌جای ۴۰۱ یک ۵۰۰ برمی‌گشت.
+    if (!refreshToken) {
+      throw new AppError(401, 'SESSION_EXPIRED', 'نشست شما منقضی شده است. دوباره وارد شوید.');
+    }
     const session = await this.prisma.session.findFirst({
       where: { refreshTokenHash: this.hashToken(refreshToken), revokedAt: null },
       include: { user: true },
@@ -75,10 +79,21 @@ export class AuthService {
       { sub: session.userId, role: session.user.role, org: session.user.organizationId },
       { secret: process.env.JWT_ACCESS_SECRET, expiresIn: (process.env.ACCESS_TOKEN_TTL ?? '15m') as any },
     );
-    return { accessToken };
+    // فرانت پس از رفرش صفحه به مشخصات کاربر هم نیاز دارد تا نشست را بازسازی کند.
+    return {
+      accessToken,
+      user: {
+        id: session.user.id,
+        fullName: session.user.fullName,
+        email: session.user.email,
+        role: session.user.role,
+        mustChangePassword: session.user.mustChangePassword,
+      },
+    };
   }
 
-  async logout(refreshToken: string) {
+  async logout(refreshToken?: string | null) {
+    if (!refreshToken) return { ok: true };
     await this.prisma.session.updateMany({
       where: { refreshTokenHash: this.hashToken(refreshToken), revokedAt: null },
       data: { revokedAt: new Date() },
@@ -86,7 +101,12 @@ export class AuthService {
     return { ok: true };
   }
 
-  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+    currentRefreshToken?: string | null,
+  ) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'کاربر پیدا نشد.');
     if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
@@ -99,9 +119,32 @@ export class AuthService {
       where: { id: userId },
       data: { passwordHash: await bcrypt.hash(newPassword, 10), mustChangePassword: false },
     });
-    // خروج از همه نشست‌های دیگر پس از تغییر رمز
-    await this.prisma.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    // خروج از همه نشست‌های *دیگر*. نشست جاری باید زنده بماند وگرنه کاربر
+    // بلافاصله بعد از تغییر رمز و انقضای access token بیرون انداخته می‌شود.
+    await this.prisma.session.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        ...(currentRefreshToken
+          ? { refreshTokenHash: { not: this.hashToken(currentRefreshToken) } }
+          : {}),
+      },
+      data: { revokedAt: new Date() },
+    });
     return { ok: true };
+  }
+
+  /** بازیابی کاربر جاری از روی توکن — برای بازسازی نشست بعد از رفرش صفحه. */
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'کاربر پیدا نشد.');
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      mustChangePassword: user.mustChangePassword,
+    };
   }
 
   private async audit(actorId: string, action: string) {

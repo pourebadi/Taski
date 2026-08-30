@@ -32,6 +32,14 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   }
 
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(body?.message ?? 'خطای غیرمنتظره‌ای رخ داد.');
+  if (!res.ok) {
+    const error = new Error(body?.message ?? 'خطای غیرمنتظره‌ای رخ داد.') as Error & {
+      code?: string;
+      status?: number;
+    };
+    error.code = body?.code;
+    error.status = res.status;
+    throw error;
+  }
   return body as T;
 }

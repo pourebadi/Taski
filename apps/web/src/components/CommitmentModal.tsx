@@ -72,6 +72,7 @@ export default function CommitmentModal({ open, onClose, onSaved, item }: Props)
       onCancel={onClose}
       onOk={submit}
       confirmLoading={saving}
+      destroyOnClose
       okText={t('common.save')}
       cancelText={t('common.cancel')}
     >

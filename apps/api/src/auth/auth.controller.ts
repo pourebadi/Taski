@@ -1,6 +1,7 @@
-import { Body, Controller, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Public } from './jwt.guard';
+import { parseOrThrow, LoginSchema, ChangePasswordSchema } from '../common/validation';
 
 const COOKIE = 'peos_refresh';
 
@@ -10,8 +11,9 @@ export class AuthController {
 
   @Public()
   @Post('login')
-  async login(@Body() body: { email: string; password: string }, @Req() req: any, @Res({ passthrough: true }) res: any) {
-    const result = await this.auth.login(body.email, body.password, req.headers['user-agent']);
+  async login(@Body() body: unknown, @Req() req: any, @Res({ passthrough: true }) res: any) {
+    const input = parseOrThrow(LoginSchema, body);
+    const result = await this.auth.login(input.email, input.password, req.headers['user-agent']);
     res.cookie(COOKIE, result.refreshToken, {
       httpOnly: true,
       sameSite: 'lax',
@@ -34,8 +36,19 @@ export class AuthController {
     return { ok: true };
   }
 
+  @Get('me')
+  me(@Req() req: any) {
+    return this.auth.me(req.user.id);
+  }
+
   @Post('change-password')
-  changePassword(@Req() req: any, @Body() body: { currentPassword: string; newPassword: string }) {
-    return this.auth.changePassword(req.user.id, body.currentPassword, body.newPassword);
+  changePassword(@Req() req: any, @Body() body: unknown) {
+    const input = parseOrThrow(ChangePasswordSchema, body);
+    return this.auth.changePassword(
+      req.user.id,
+      input.currentPassword,
+      input.newPassword,
+      req.cookies?.[COOKIE],
+    );
   }
 }

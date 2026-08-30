@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppError } from '../common/errors';
 import { ROLES, USER_STATUS, Role } from '../common/constants';
 import { normalizeFa } from '../common/text';
+import { parseOrThrow, CreateUserSchema, ChangeRoleSchema, ChangeStatusSchema } from '../common/validation';
 
 type Actor = { id: string; role: Role; organizationId: string };
 
@@ -46,11 +47,9 @@ export class UsersService {
    * ساخت کاربر فقط توسط ادمین. ثبت‌نام عمومی وجود ندارد.
    * رمز موقت تولید و در پاسخ برگردانده می‌شود؛ SMTP لازم نیست. (PM-B1)
    */
-  async create(actor: Actor, input: CreateUserInput) {
-    if (!ROLES.includes(input.role)) {
-      throw new AppError(422, 'INVALID_ROLE', 'نقش نرم‌افزاری نامعتبر است.');
-    }
-
+  async create(actor: Actor, raw: CreateUserInput) {
+    // ایمیل بدون فرمت درست یا نبودِ fullName قبلاً ۵۰۰ می‌داد.
+    const input = parseOrThrow(CreateUserSchema, raw) as CreateUserInput;
     const email = input.email.toLowerCase().trim();
     const exists = await this.prisma.user.findUnique({ where: { email } });
     if (exists) {
@@ -112,9 +111,14 @@ export class UsersService {
     };
   }
 
-  async changeRole(actor: Actor, userId: string, role: Role) {
-    if (!ROLES.includes(role)) throw new AppError(422, 'INVALID_ROLE', 'نقش نرم‌افزاری نامعتبر است.');
+  async changeRole(actor: Actor, userId: string, rawRole: Role) {
+    const role = parseOrThrow(ChangeRoleSchema, { role: rawRole }).role as Role;
     const user = await this.mustFind(actor, userId);
+
+    // ادمین نباید بتواند نقش خودش را پایین بیاورد و در را روی خودش قفل کند.
+    if (userId === actor.id && ADMIN_ROLES.includes(actor.role) && !ADMIN_ROLES.includes(role)) {
+      throw new AppError(422, 'SELF_DEMOTION', 'نمی‌توانید نقش مدیریتی خودتان را حذف کنید.');
+    }
 
     // نباید آخرین ادمین فعال را از نقش ادمین خارج کرد. (D-003)
     if (ADMIN_ROLES.includes(user.role as Role) && !ADMIN_ROLES.includes(role)) {
@@ -127,14 +131,17 @@ export class UsersService {
   }
 
   /** تغییر وضعیت عضو. غیرفعال شدن، همه نشست‌ها را فوراً باطل می‌کند. (PM-B2) */
-  async changeStatus(actor: Actor, userId: string, status: string) {
-    if (!USER_STATUS.includes(status as any)) {
-      throw new AppError(422, 'INVALID_STATUS', 'وضعیت نامعتبر است.');
-    }
+  async changeStatus(actor: Actor, userId: string, rawStatus: string) {
+    const status = parseOrThrow(ChangeStatusSchema, { status: rawStatus }).status;
     const user = await this.mustFind(actor, userId);
 
     if (status !== 'ACTIVE' && ADMIN_ROLES.includes(user.role as Role)) {
       await this.assertNotLastAdmin(actor.organizationId, userId);
+    }
+
+    // غیرفعال کردن حساب خودت یعنی قفل شدن بیرون اتاق.
+    if (userId === actor.id && status !== 'ACTIVE') {
+      throw new AppError(422, 'SELF_DISABLE', 'نمی‌توانید حساب خودتان را غیرفعال کنید.');
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -197,6 +204,9 @@ export class UsersService {
 
   /** واگذاری گروهی کارهای یک نفر به نفر دیگر، پیش از خروج. */
   async reassignAll(actor: Actor, fromUserId: string, toUserId: string) {
+    if (fromUserId === toUserId) {
+      throw new AppError(422, 'SAME_USER', 'مبدأ و مقصد واگذاری نمی‌تواند یک نفر باشد.');
+    }
     await this.mustFind(actor, fromUserId);
     await this.mustFind(actor, toUserId);
 
