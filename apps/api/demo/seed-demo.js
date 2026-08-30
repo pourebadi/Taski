@@ -22,16 +22,16 @@ async function main() {
   }
 
   const roster = [
-    ['خانم ترابی', 'هد بک‌اند', 'TEAM_LEAD', 'Backend'],
-    ['آقای گلی', 'کارشناس بک‌اند', 'CONTRIBUTOR', 'Backend'],
-    ['آقای دلیری', 'هد فرانت', 'TEAM_LEAD', 'Frontend'],
-    ['آقای میلاد نیکروان', 'ارشد بازاریابی', 'CONTRIBUTOR', 'Marketing & Growth'],
-    ['خانم مقدم', 'دیزاینر و تولید محتوا', 'CONTRIBUTOR', 'Design & Content'],
+    ['خانم ترابی', 'torabi', 'هد بک‌اند', 'TEAM_LEAD', 'Backend'],
+    ['آقای گلی', 'goli', 'کارشناس بک‌اند', 'CONTRIBUTOR', 'Backend'],
+    ['آقای دلیری', 'daliri', 'هد فرانت', 'TEAM_LEAD', 'Frontend'],
+    ['آقای میلاد نیکروان', 'nikravan', 'ارشد بازاریابی', 'CONTRIBUTOR', 'Marketing & Growth'],
+    ['خانم مقدم', 'moghadam', 'دیزاینر و تولید محتوا', 'CONTRIBUTOR', 'Design & Content'],
   ];
   const ids = {};
-  for (const [i, [name, title, role, team]] of roster.entries()) {
+  for (const [name, username, title, role, team] of roster) {
     const r = await users.create(admin, {
-      fullName: name, jobTitle: title,
+      fullName: name, username, jobTitle: title,
       role, primaryTeamId: teamIds[team],
     });
     ids[name] = r.id;

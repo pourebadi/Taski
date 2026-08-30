@@ -48,9 +48,9 @@ export class UsersService {
    * رمز موقت تولید و در پاسخ برگردانده می‌شود؛ SMTP لازم نیست. (PM-B1)
    */
   async create(actor: Actor, raw: CreateUserInput) {
+    // ایمیل بدون فرمت درست یا نبودِ fullName قبلاً ۵۰۰ می‌داد.
     const input = parseOrThrow(CreateUserSchema, raw) as CreateUserInput;
-    // اگر نام‌کاربری ارائه نشده، از نام کامل تولید می‌شود.
-    const rawUsername = String(input.username ?? this.generateUsername(input.fullName)).toLowerCase().trim();
+    const rawUsername = String((input as any).username ?? '').toLowerCase().trim();
     const usernameTaken = await this.prisma.user.findUnique({ where: { username: rawUsername } });
     if (usernameTaken) {
       throw new AppError(409, 'USERNAME_TAKEN', 'کاربری با این نام‌کاربری از قبل وجود دارد.');
@@ -312,16 +312,6 @@ export class UsersService {
     });
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'کاربر پیدا نشد.');
     return user;
-  }
-
-  /** تولید نام‌کاربری از نام کامل: حذف فاصله و کاراکترهای خاص. */
-  private generateUsername(fullName: string): string {
-    return fullName
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, '')
-      .replace(/[^a-zA-Z0-9؀-ۿ]/g, '')
-      .slice(0, 30) || `user${Date.now()}`;
   }
 
   private async audit(actor: Actor, action: string, entityId: string, before?: unknown, after?: unknown) {

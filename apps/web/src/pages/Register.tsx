@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Alert, Button, Form, Input, Typography, App as AntApp } from 'antd';
-import { useNavigate } from 'react-router-dom';
+import { Alert, Button, Form, Input, Typography } from 'antd';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth-store';
 import { t } from '../lib/i18n';
@@ -8,17 +8,24 @@ import type { CurrentUser } from '../lib/auth-store';
 
 export default function Register() {
   const setSession = useAuth((s) => s.setSession);
-  const nav = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const onFinish = async (values: { fullName: string; username: string; password: string }) => {
+  const onFinish = async (values: { fullName: string; username: string; password: string; confirm: string }) => {
+    if (values.password !== values.confirm) {
+      setError('رمز عبور و تکرار آن یکسان نیستند.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const res = await api<{ accessToken: string; user: CurrentUser }>('/auth/register', {
         method: 'POST',
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          fullName: values.fullName,
+          username: values.username,
+          password: values.password,
+        }),
       });
       setSession(res.accessToken, res.user);
     } catch (e) {
@@ -38,7 +45,7 @@ export default function Register() {
           {t('auth.register')}
         </Typography.Title>
         <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '6px 0 22px' }}>
-          {t('app.title')}
+          یک حساب کاربری برای خودتان بسازید.
         </p>
 
         <div aria-live="polite">
@@ -51,14 +58,16 @@ export default function Register() {
             label="نام و نام خانوادگی"
             rules={[{ required: true, message: 'نام خود را وارد کنید.' }]}
           >
-            <Input autoFocus placeholder="مثلاً: علی محمدی" />
+            <Input autoFocus placeholder="مثلاً: علی احمدی" />
           </Form.Item>
           <Form.Item
             name="username"
             label={t('auth.username')}
             rules={[
               { required: true, message: 'نام‌کاربری را وارد کنید.' },
-              { pattern: /^[^\s@]{3,30}$/, message: '۳ تا ۳۰ نویسه، بدون فاصله و @.' },
+              { min: 3, message: 'نام‌کاربری حداقل ۳ نویسه.' },
+              { max: 30, message: 'نام‌کاربری حداکثر ۳۰ نویسه.' },
+              { pattern: /^[^\s@]+$/, message: 'نام‌کاربری نباید فاصله یا @ داشته باشد.' },
             ]}
           >
             <Input dir="ltr" autoComplete="username" placeholder="مثلاً: ali" />
@@ -66,14 +75,9 @@ export default function Register() {
           <Form.Item
             name="password"
             label={t('auth.password')}
-            extra="حداقل ۱۰ کاراکتر، شامل حرف و عدد."
             rules={[
               { required: true, message: 'رمز عبور را وارد کنید.' },
-              { min: 10, message: 'رمز باید حداقل ۱۰ کاراکتر باشد.' },
-              {
-                pattern: /^(?=.*[a-zA-Z])(?=.*[0-9]).+$/,
-                message: 'رمز باید هم حرف داشته باشد هم عدد.',
-              },
+              { min: 10, message: 'رمز عبور باید حداقل ۱۰ کاراکتر باشد.' },
             ]}
           >
             <Input.Password dir="ltr" autoComplete="new-password" />
@@ -83,12 +87,12 @@ export default function Register() {
             label="تکرار رمز عبور"
             dependencies={['password']}
             rules={[
-              { required: true, message: 'رمز عبور را دوباره وارد کنید.' },
+              { required: true, message: 'تکرار رمز عبور را وارد کنید.' },
               ({ getFieldValue }) => ({
-                validator: (_, value) =>
-                  !value || getFieldValue('password') === value
-                    ? Promise.resolve()
-                    : Promise.reject(new Error('دو رمز یکی نیستند.')),
+                validator(_, value) {
+                  if (!value || getFieldValue('password') === value) return Promise.resolve();
+                  return Promise.reject(new Error('رمز عبور و تکرار آن یکسان نیستند.'));
+                },
               }),
             ]}
           >
@@ -100,10 +104,7 @@ export default function Register() {
         </Form>
 
         <p style={{ color: 'var(--text-faint)', fontSize: 12, margin: '18px 0 0', textAlign: 'center' }}>
-          {t('auth.haveAccount')}{' '}
-          <Button type="link" size="small" style={{ padding: 0, fontSize: 12 }} onClick={() => nav('/login')}>
-            {t('auth.login')}
-          </Button>
+          {t('auth.haveAccount')} <Link to="/login">{t('auth.login')}</Link>
         </p>
       </div>
     </main>

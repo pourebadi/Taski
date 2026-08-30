@@ -160,7 +160,7 @@ async function scenarioHealthAndAuth() {
   const badPass = await post('/auth/login', { username: USERNAME, password: 'definitely-wrong' }, { noAuth: true });
   expectStatus(badPass, 401, 'رمز غلط → ۴۰۱');
 
-  const noUser = await post('/auth/login', { username: `ghost${STAMP}`, password: 'x' }, { noAuth: true });
+  const noUser = await post('/auth/login', { username: `ghost-${STAMP}`, password: 'x' }, { noAuth: true });
   if (noUser.body?.message && badPass.body?.message && noUser.body.message !== badPass.body.message) {
     bug('پیام خطای ورود وجود حساب را لو می‌دهد', 'کاربر ناموجود و رمز غلط پیام یکسان نمی‌دهند');
   } else {
@@ -308,7 +308,7 @@ async function scenarioBuildWorld() {
     ['REQUESTER', 'درخواست‌دهنده'],
   ];
   for (const [role, label] of roster) {
-    const username = `e2e${role.toLowerCase()}${STAMP}`;
+    const username = `e2e.${role.toLowerCase()}.${STAMP}`;
     const res = await post('/users', {
       fullName: `[E2E] ${label}`,
       username,

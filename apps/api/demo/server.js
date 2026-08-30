@@ -63,9 +63,7 @@ function wrap(handler, permission) {
 }
 
 app.post('/api/v1/auth/login', async (req, res) => {
-  const username = String(req.body.username || '').toLowerCase();
-  const all = await prisma.user.findMany({});
-  const user = all.find(u => (u.username || '').toLowerCase() === username);
+  const user = await prisma.user.findUnique({ where: { username: String(req.body.username || '').toLowerCase() } });
   if (!user || !(await bcrypt.compare(req.body.password || '', user.passwordHash))) {
     return res.status(401).json({ code: 'INVALID_CREDENTIALS', message: 'نام‌کاربری یا رمز عبور نادرست است.' });
   }
@@ -76,41 +74,7 @@ app.post('/api/v1/auth/login', async (req, res) => {
   tokens.set(token, { id: user.id, role: user.role, organizationId: user.organizationId });
   res.json({
     accessToken: token,
-    user: { id: user.id, fullName: user.fullName, username: user.username, role: user.role, mustChangePassword: user.mustChangePassword || false },
-  });
-});
-
-app.post('/api/v1/auth/register', async (req, res) => {
-  const { fullName, username, password } = req.body;
-  if (!fullName || !username || !password) {
-    return res.status(400).json({ code: 'VALIDATION', message: 'نام، نام‌کاربری و رمز عبور الزامی است.' });
-  }
-  if (username.length < 3 || username.length > 30 || /[\s@]/.test(username)) {
-    return res.status(400).json({ code: 'VALIDATION', message: 'نام‌کاربری باید ۳ تا ۳۰ نویسه بدون فاصله و @ باشد.' });
-  }
-  if (password.length < 10 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
-    return res.status(400).json({ code: 'VALIDATION', message: 'رمز عبور باید حداقل ۱۰ کاراکتر و شامل حرف و عدد باشد.' });
-  }
-  const all = await prisma.user.findMany({});
-  if (all.find(u => (u.username || '').toLowerCase() === username.toLowerCase())) {
-    return res.status(409).json({ code: 'DUPLICATE', message: 'این نام‌کاربری قبلاً ثبت شده است.' });
-  }
-  const orgRow = all[0];
-  const orgId = orgRow ? orgRow.organizationId : 'org-default';
-  if (!orgRow) {
-    await prisma.organization.create({ data: { id: orgId, name: 'سازمان', timezone: 'Asia/Tehran' } });
-  }
-  const id = randomUUID();
-  await prisma.user.create({ data: {
-    id, organizationId: orgId, fullName: fullName.trim(), username: username.toLowerCase(),
-    passwordHash: await bcrypt.hash(password, 10), role: 'VIEWER', status: 'ACTIVE',
-    mustChangePassword: false, weeklyCapacityHours: 40, createdAt: new Date(),
-  }});
-  const token = randomUUID();
-  tokens.set(token, { id, role: 'VIEWER', organizationId: orgId });
-  res.status(201).json({
-    accessToken: token,
-    user: { id, fullName: fullName.trim(), username: username.toLowerCase(), role: 'VIEWER', mustChangePassword: false },
+    user: { id: user.id, fullName: user.fullName, username: user.username, role: user.role, mustChangePassword: false },
   });
 });
 

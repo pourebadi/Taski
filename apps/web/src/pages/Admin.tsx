@@ -26,7 +26,7 @@ import { faDigits } from '../lib/date';
 type User = {
   id: string;
   fullName: string;
-  username: string;
+  username?: string | null;
   jobTitle?: string | null;
   role: string;
   status: string;

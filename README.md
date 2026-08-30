@@ -1,8 +1,8 @@
 <div align="center">
 
-# 🚀 Taski
+# Taski
 
-### The Product & Project Execution Operating System
+### Product & Project Execution System
 
 **One team. One source of truth. Zero spreadsheets.**
 
@@ -13,104 +13,70 @@
 [![SQLite](https://img.shields.io/badge/DB-SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 
 [![License](https://img.shields.io/badge/License-Private-lightgrey?style=flat-square)]()
-[![Status](https://img.shields.io/badge/Status-Active_Development-brightgreen?style=flat-square)]()
+[![Tests](https://img.shields.io/badge/Tests-337_passing-brightgreen?style=flat-square)]()
 [![Locale](https://img.shields.io/badge/UI-Persian_%2F_RTL-blueviolet?style=flat-square)]()
 
 </div>
 
 ---
 
-## ✨ What is this?
+## What is this?
 
-**PE-OS** is not another generic task tracker. It's a purpose-built execution system for a small, high-velocity team — designed around three ideas most tools get wrong:
+Taski is a purpose-built execution system for small, high-velocity teams. It replaces spreadsheet-based project tracking with a system designed around three ideas most tools get wrong:
 
-| ❌ The old way | ✅ The PE-OS way |
+| The old way | The Taski way |
 |---|---|
-| Nobody actually knows what's in progress right now | A single live list of active work, with a clear owner |
-| New work sneaks in and silently pushes everything back | Work can't enter execution without passing **Intake** |
-| Dates get announced, then quietly slip with no trace | Every ETA change is **logged with a mandatory reason** — no silent overwrites |
-| Decisions get made and forgotten | A permanent, searchable **Decision Log** |
-| Support work eats the team's capacity invisibly | Work is split into 4 visible **Streams**, tracked against real capacity |
-
-> 🎯 **Goal:** the weekly leadership review runs entirely off what's *in* the system — no spreadsheets, no "let me check and get back to you."
+| Nobody knows what's in progress right now | A single live board with clear owners |
+| New work sneaks in and pushes everything back | Work can't enter execution without passing **Intake** |
+| Dates get announced, then quietly slip | Every ETA change is **logged with a mandatory reason** |
+| Support work eats capacity invisibly | Work split into 4 visible **Streams**, tracked against real capacity |
 
 ---
 
-## 🧠 Core Concepts
+## Features
 
-```mermaid
-flowchart LR
-    A[📥 Intake] -->|Triage| B[📋 Backlog]
-    B --> C[🏃 In Progress]
-    C --> D[👀 Review]
-    D --> E[✅ Done]
-    C -.->|blocked by| F[🚧 Blocker]
-    C -.->|needs| G[🔗 Dependency]
-    C --> H[📅 ETA + History]
-    B --> I[📝 Decision Log]
-```
-
-- **Two independent axes per work item** — execution stage *and* delivery health — so "in progress" and "at risk" are never conflated.
-- **Mandatory Intake** — no task skips the front door.
-- **ETA with confidence + assumptions**, never a bare guess, always versioned.
-- **Board, My Work, and Weekly Review** — three lenses on the same underlying truth.
+- **Full Persian RTL UI** with Jalali/Shamsi calendar
+- **Light & dark themes** with WCAG AA contrast compliance
+- **Customizable board** — 4 presets (Full, Kanban, Minimal, Scrum) + per-column toggle, reorder, rename by admin
+- **Username-based authentication** with JWT + cookie-based refresh tokens
+- **Review/approval workflow** — reviewer can approve or send back with reason
+- **Capacity management** — weekly hours per person, tracked against active commitments
+- **ETA with confidence levels** — effort estimates auto-convert to delivery dates using the working calendar (Sat–Thu)
+- **Bilingual labels** — Persian primary + English subtitle on board columns and badges
+- **Command palette** (Ctrl+K) for quick navigation
+- **Change audit trail** — priority, owner, assignee, and deadline changes require a logged reason
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
-Deliberately boring, deliberately simple. **One deployable, one database, zero moving parts to babysit.**
+Single deployable, single database. Zero moving parts to babysit.
 
 ```
-┌─────────────────────────────────────────────┐
-│                   Browser                    │
-└───────────────────────┬───────────────────────┘
-                         │  one URL
-┌───────────────────────▼───────────────────────┐
-│              NestJS Runtime (single)           │
-│                                                 │
-│   /api/v1/*   →  REST API                      │
-│   /*          →  React (Vite) build             │
-│   SQLite      →  data/app.db                    │
-│   Files       →  data/uploads/                  │
-└─────────────────────────────────────────────────┘
+Browser → one URL → NestJS Runtime
+                     ├── /api/v1/*  REST API
+                     ├── /*         React (Vite) build
+                     ├── SQLite     data/app.db
+                     └── Files      data/uploads/
 ```
 
-**Explicitly out of scope for the MVP:** managed Postgres, Redis, message queues, S3, SMTP, OAuth/SSO, Kubernetes, microservices, horizontal scaling. This is a **local-first, self-contained** system by design — not an accident.
+**Out of scope for MVP:** PostgreSQL, Redis, message queues, S3, SMTP, OAuth/SSO, Docker, Kubernetes, microservices, horizontal scaling.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
-<table>
-<tr>
-<td valign="top" width="50%">
-
-### Backend
-- **NestJS** + TypeScript
-- **Prisma** ORM (SQLite provider)
-- **Zod** for runtime validation
-- **JWT** auth with cookie-based refresh
-- **Vitest** + Supertest for testing
-
-</td>
-<td valign="top" width="50%">
-
-### Frontend
-- **React 18** + **Vite**
-- **Ant Design v5** (component system)
-- **Tailwind** (layout utilities only)
-- **dnd-kit** for the drag-and-drop board
-- **dayjs + jalaliday** — full Jalali/Shamsi calendar support
-- Fully **Persian, RTL-native** UI
-
-</td>
-</tr>
-</table>
+| Backend | Frontend |
+|---|---|
+| NestJS + TypeScript | React 18 + Vite |
+| Prisma ORM (SQLite) | Ant Design v5 (RTL) |
+| Zod validation | Zustand (auth state) |
+| JWT auth | recharts (data viz) |
+| Vitest + Supertest | Vitest + jsdom |
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ```bash
 # 1. Clone & configure
@@ -118,16 +84,16 @@ git clone https://github.com/pourebadi/Taski.git
 cd Taski
 cp .env.example .env      # set ADMIN_* and JWT_* values
 
-# 2. Install & prepare the database
+# 2. Install & prepare
 npm install
 npm run db:migrate
 npm run db:seed
 
-# 3. Run it
+# 3. Run
 npm run dev                # API on :3000, Web on :5173
 ```
 
-**For production:**
+**Production:**
 
 ```bash
 npm run build && npm start
@@ -135,56 +101,64 @@ npm run build && npm start
 
 ---
 
-## 📁 Project Structure
-
-```
-apps/
-├── api/          NestJS + Prisma + SQLite backend
-└── web/          React + Vite + Ant Design frontend (RTL, fa_IR, Jalali calendar)
-docs/             Product docs, scope decisions, backlog, runbook
-data/             Database, uploads, backups — never committed
-CLAUDE.md         The executive contract — single source of truth for decisions
-```
-
----
-
-## ⚙️ Key Environment Variables
+## Environment Variables
 
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | SQLite file path, e.g. `file:./data/app.db` |
+| `DATABASE_URL` | SQLite path, e.g. `file:./data/app.db` |
 | `JWT_ACCESS_SECRET` | Signing secret for access tokens |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` | Bootstrap admin account (required in production) |
+| `JWT_REFRESH_SECRET` | Signing secret for refresh tokens |
+| `ADMIN_USERNAME` | Bootstrap admin username |
+| `ADMIN_PASSWORD` | Bootstrap admin password |
+| `ADMIN_NAME` | Bootstrap admin display name |
 | `TZ` | Defaults to `Asia/Tehran` |
 
-> ⚠️ In production, the app **refuses to boot** with the default admin password. Always set a real one.
+---
+
+## Project Structure
+
+```
+apps/
+├── api/              NestJS backend
+│   ├── src/          Source (auth, users, work-items, organization, calendar)
+│   ├── prisma/       Schema, migrations, seeds
+│   └── test/         162 API tests
+└── web/              React frontend
+    ├── src/
+    │   ├── components/   UI components (Board, Drawers, Modals, Badges)
+    │   ├── pages/        Routes (MyWork, Board, WorkList, Insights, Admin, Login)
+    │   ├── theme/        Design tokens, ThemeProvider (light/dark)
+    │   ├── lib/          Utilities (terms, i18n, date, board-config, auth-store)
+    │   └── locales/      fa.json (all Persian strings)
+    └── test/             175 frontend tests
+docs/                 Product docs, audit report, architecture decisions, changelog
+```
 
 ---
 
-## 📜 Non-Negotiable Rules
+## Commands
 
-A few architectural rules are locked and enforced across the codebase (see `CLAUDE.md` for the full list):
-
-- ✅ Every permission check happens **server-side**, from one centralized `authorization` module
-- ✅ Every ETA change requires a **logged reason** — overwrite paths don't exist
-- ✅ All dates stored in **UTC**, always displayed in **Jalali/Shamsi**
-- ✅ No stack traces ever reach the client
-- ✅ No hardcoded Persian strings in components — everything through `locales/fa.json`
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start API + Web in dev mode |
+| `npm run build` | Production build |
+| `npm run test` | Run all 337 tests |
+| `npm run db:migrate` | Apply database migrations |
+| `npm run db:seed` | Seed initial data (idempotent) |
+| `npm run db:seed:pilot` | Seed pilot team (IranPeymex roster) |
+| `npm run backup:now` | Backup database |
+| `npm run admin:reset-password -- --username=<x>` | Reset a user's password |
 
 ---
 
-## 🗺️ Roadmap Snapshot
+## Non-Negotiable Rules
 
-| Phase | Focus | Output |
-|---|---|---|
-| 0 | Scope & UX skeleton | Data model, access matrix, wireframes |
-| 1 | Foundation | Auth, RBAC, Persian RTL shell |
-| 2 | Core work items | Projects, tasks, Board, My Work |
-| 3 | Intake + ETA | Triage queue, ETA with history |
-| 4 | Risk & decisions | Blockers, dependencies, Decision Log |
-| 5 | Capacity & review | Weekly review, reporting |
-| 6 | Hardening | Backup/restore, regression tests |
-| 7 | Pilot rollout | Real-world usage, onboarding |
+- Every permission check happens **server-side** from a centralized authorization module
+- Every ETA change requires a **logged reason** — no silent overwrites
+- All dates stored in **UTC**, displayed in **Jalali/Shamsi**
+- No hardcoded Persian strings in components — everything through `locales/fa.json`
+- `data/` directory is never committed
+- Working days: Saturday through Thursday. Friday is off.
 
 ---
 

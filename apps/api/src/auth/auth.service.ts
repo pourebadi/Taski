@@ -61,9 +61,6 @@ export class AuthService {
     };
   }
 
-  /**
-   * ثبت‌نام عمومی. کاربر جدید با نقش VIEWER ساخته می‌شود.
-   */
   async register(fullName: string, username: string, password: string, userAgent?: string) {
     const input = parseOrThrow(RegisterSchema, { fullName, username, password });
 
@@ -72,7 +69,6 @@ export class AuthService {
       throw new AppError(409, 'USERNAME_TAKEN', 'کاربری با این نام‌کاربری از قبل وجود دارد.');
     }
 
-    // سازمان پیش‌فرض — در MVP فقط یک سازمان داریم.
     const org = await this.prisma.organization.findFirst();
     if (!org) throw new AppError(500, 'NO_ORG', 'سازمانی تعریف نشده است.');
 

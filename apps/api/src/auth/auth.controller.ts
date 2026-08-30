@@ -25,8 +25,9 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  async register(@Body() body: any, @Req() req: any, @Res({ passthrough: true }) res: any) {
-    const result = await this.auth.register(body.fullName, body.username, body.password, req.headers['user-agent']);
+  async register(@Body() body: unknown, @Req() req: any, @Res({ passthrough: true }) res: any) {
+    const { fullName, username, password } = body as any;
+    const result = await this.auth.register(fullName, username, password, req.headers['user-agent']);
     res.cookie(COOKIE, result.refreshToken, {
       httpOnly: true,
       sameSite: 'lax',

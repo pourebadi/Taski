@@ -44,8 +44,9 @@ model User {
   id             String  @id
   organizationId String
   fullName       String
-  // هویت ورود: فقط نام‌کاربری. ایمیل حذف شد از محصول.
-  username       String  @unique
+  // هویت ورود: نام‌کاربری. ایمیل اختیاری و ثانویه شد.
+  username       String? @unique
+  email          String  @unique
   passwordHash   String
   // سمت سازمانی — هیچ مجوزی نمی‌دهد (D: job title != permission)
   jobTitle       String?

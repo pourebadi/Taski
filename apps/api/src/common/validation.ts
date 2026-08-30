@@ -115,8 +115,7 @@ export const CreateUserSchema = z.object({
     .trim()
     .min(3, { message: 'نام‌کاربری حداقل ۳ نویسه.' })
     .max(30)
-    .regex(/^[^\s@]+$/, { message: 'نام‌کاربری نباید فاصله یا @ داشته باشد.' })
-    .optional(),
+    .regex(/^[^\s@]+$/, { message: 'نام‌کاربری نباید فاصله یا @ داشته باشد.' }),
   jobTitle: z.string().max(150).nullish(),
   role: z.enum(ROLES),
   primaryTeamId: id.nullish(),
