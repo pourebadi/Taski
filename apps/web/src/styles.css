@@ -639,6 +639,59 @@ body {
   color: #fff;
 }
 
+/* ───────────────────────────────────────────────────────────────
+   فرم‌ها — گروه‌بندی و چیدمان دوستونه تا کاربر اورلود نشود.
+   ─────────────────────────────────────────────────────────────── */
+.form-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+@media (max-width: 560px) {
+  .form-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin: 2px 0 12px;
+}
+
+/* دکمه‌ی «جزئیات بیشتر» — بخش اختیاری را باز/بسته می‌کند */
+.form-expand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  color: var(--brand);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 2px;
+  margin: 2px 0 10px;
+  border-radius: var(--radius-sm);
+}
+.form-expand:hover {
+  text-decoration: underline;
+}
+.form-expand .anticon {
+  font-size: 11px;
+  transition: transform 0.15s ease;
+}
+
+/* جداکننده‌ی نرم بین بخش الزامی و اختیاری */
+.form-divider {
+  height: 1px;
+  background: var(--line-soft);
+  margin: 4px 0 14px;
+}
+
 /* کلید میان‌بر در هدر */
 .kbd {
   font-family: var(--mono);
