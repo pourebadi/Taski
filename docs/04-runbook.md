@@ -54,7 +54,7 @@ npm run backup:restore -- --file=app-2026-08-29T10-00-00-000Z.db
 اگر خود ادمین قفل شد، از ترمینال سرور:
 
 ```bash
-npm run admin:reset-password -- --email=admin@example.com
+npm run admin:reset-password -- --username=admin
 ```
 
 ## ۵) انتقال به سرور شرکت
