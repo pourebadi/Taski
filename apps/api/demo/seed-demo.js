@@ -11,7 +11,7 @@ async function main() {
   }
   await prisma.organization.create({ data: { id: ORG, name: 'ایران پیمکس', timezone: 'Asia/Tehran' } });
   await prisma.user.create({ data: {
-    id: admin.id, organizationId: ORG, fullName: 'مدیر سیستم', email: 'admin@iranpeymex.local',
+    id: admin.id, organizationId: ORG, fullName: 'مدیر سیستم', username: 'admin',
     passwordHash: await bcrypt.hash('Admin-Strong-1', 10), role: 'ORG_OWNER', status: 'ACTIVE',
     mustChangePassword: false, jobTitle: 'مدیرعامل', weeklyCapacityHours: 40, createdAt: new Date(),
   }});
@@ -31,7 +31,7 @@ async function main() {
   const ids = {};
   for (const [i, [name, title, role, team]] of roster.entries()) {
     const r = await users.create(admin, {
-      fullName: name, email: `user${i + 1}@iranpeymex.local`, jobTitle: title,
+      fullName: name, jobTitle: title,
       role, primaryTeamId: teamIds[team],
     });
     ids[name] = r.id;
@@ -105,7 +105,7 @@ async function main() {
 
   await items.changeState(daliri, made[5].id, 'READY');
 
-  console.log('\nادمین: admin@iranpeymex.local / Admin-Strong-1');
+  console.log('\nادمین: admin / Admin-Strong-1');
   console.log(`پروژه‌ها: IPX (IranPeymex)، WEB / کارها: ${made.length}`);
 }
 

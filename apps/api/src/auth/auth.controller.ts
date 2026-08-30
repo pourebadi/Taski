@@ -24,6 +24,19 @@ export class AuthController {
   }
 
   @Public()
+  @Post('register')
+  async register(@Body() body: any, @Req() req: any, @Res({ passthrough: true }) res: any) {
+    const result = await this.auth.register(body.fullName, body.username, body.password, req.headers['user-agent']);
+    res.cookie(COOKIE, result.refreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 14) * 86400_000,
+    });
+    return { accessToken: result.accessToken, user: result.user };
+  }
+
+  @Public()
   @Post('refresh')
   refresh(@Req() req: any) {
     return this.auth.refresh(req.cookies?.[COOKIE]);

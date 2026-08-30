@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import { Spin } from 'antd';
+import { App as AntApp, Spin } from 'antd';
 import { useAuth } from './lib/auth-store';
 import { api } from './lib/api';
+import { t } from './lib/i18n';
 import type { CurrentUser } from './lib/auth-store';
 import AppShell from './components/AppShell';
 import Login from './pages/Login';
+import Register from './pages/Register';
 import ChangePassword from './pages/ChangePassword';
 import MyWork from './pages/MyWork';
 import Board from './pages/Board';
@@ -18,6 +20,8 @@ export default function App() {
   const user = useAuth((s) => s.user);
   const setSession = useAuth((s) => s.setSession);
   const [booting, setBooting] = useState(true);
+  const prevUser = useRef<CurrentUser | null>(null);
+  const { notification } = AntApp.useApp();
 
   /**
    * access token فقط در حافظه است، پس با هر رفرش صفحه از بین می‌رفت و کاربر
@@ -38,6 +42,17 @@ export default function App() {
     };
   }, [setSession]);
 
+  useEffect(() => {
+    if (!booting && user && !prevUser.current) {
+      notification.success({
+        message: `${user.fullName}، ${t('auth.welcome')}!`,
+        placement: 'topRight',
+        duration: 4,
+      });
+    }
+    prevUser.current = user;
+  }, [user, booting, notification]);
+
   if (booting) {
     return (
       <div style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}>
@@ -50,6 +65,7 @@ export default function App() {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );

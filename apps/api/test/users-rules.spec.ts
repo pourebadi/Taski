@@ -13,19 +13,19 @@ function makePrisma(overrides: any = {}) {
 }
 
 describe('قواعد کاربر', () => {
-  it('ایمیل تکراری رد می‌شود', async () => {
+  it('نام‌کاربری تکراری رد می‌شود', async () => {
     const prisma = makePrisma();
     prisma.user.findUnique.mockResolvedValue({ id: 'x' });
     const svc = new UsersService(prisma);
     await expect(
-      svc.create(actor, { fullName: 'الف', email: 'a@b.c', role: 'CONTRIBUTOR' }),
+      svc.create(actor, { fullName: 'الف', username: 'alef', role: 'CONTRIBUTOR' }),
     ).rejects.toThrow();
   });
 
   it('نقش نامعتبر رد می‌شود', async () => {
     const svc = new UsersService(makePrisma());
     await expect(
-      svc.create(actor, { fullName: 'الف', email: 'a@b.c', role: 'SUPER_BOSS' as any }),
+      svc.create(actor, { fullName: 'الف', username: 'alef', role: 'SUPER_BOSS' as any }),
     ).rejects.toThrow();
   });
 

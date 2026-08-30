@@ -115,16 +115,8 @@ export const CreateUserSchema = z.object({
     .trim()
     .min(3, { message: 'نام‌کاربری حداقل ۳ نویسه.' })
     .max(30)
-    .regex(/^[^\s@]+$/, { message: 'نام‌کاربری نباید فاصله یا @ داشته باشد.' }),
-  // ایمیل حالا اختیاری و ثانویه است. اگر ندهند، از نام‌کاربری ساخته می‌شود.
-  // عمداً سخت‌گیر نیست چون بخش محلی می‌تواند فارسی باشد (مثل ترابی@ipx.local).
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .max(254)
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/, { message: 'ایمیل معتبر نیست.' })
-    .nullish(),
+    .regex(/^[^\s@]+$/, { message: 'نام‌کاربری نباید فاصله یا @ داشته باشد.' })
+    .optional(),
   jobTitle: z.string().max(150).nullish(),
   role: z.enum(ROLES),
   primaryTeamId: id.nullish(),
@@ -151,6 +143,23 @@ export const ChangePasswordSchema = z.object({
   newPassword: z.string().min(10).max(200),
 });
 
+export const RegisterSchema = z.object({
+  fullName: trimmed(150),
+  username: z
+    .string()
+    .trim()
+    .min(3, { message: 'نام‌کاربری حداقل ۳ نویسه.' })
+    .max(30)
+    .regex(/^[^\s@]+$/, { message: 'نام‌کاربری نباید فاصله یا @ داشته باشد.' }),
+  password: z
+    .string()
+    .min(10, { message: 'رمز عبور باید حداقل ۱۰ کاراکتر باشد.' })
+    .max(200)
+    .refine((v) => /[a-zA-Z]/.test(v) && /[0-9]/.test(v), {
+      message: 'رمز عبور باید شامل حرف و عدد باشد.',
+    }),
+});
+
 const FIELD_LABELS: Record<string, string> = {
   title: 'عنوان',
   workType: 'نوع کار',
@@ -164,7 +173,6 @@ const FIELD_LABELS: Record<string, string> = {
   newEta: 'تاریخ تحویل',
   newEstimateHours: 'تخمین ساعت',
   confidence: 'سطح اطمینان',
-  email: 'ایمیل',
   fullName: 'نام',
   role: 'نقش نرم‌افزاری',
   status: 'وضعیت',

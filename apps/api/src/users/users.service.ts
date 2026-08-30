@@ -13,7 +13,7 @@ const ADMIN_ROLES: Role[] = ['ORG_OWNER', 'ADMIN'];
 
 export type CreateUserInput = {
   fullName: string;
-  email: string;
+  username?: string;
   /** سمت سازمانی — هیچ مجوزی نمی‌دهد. (PM-B1) */
   jobTitle?: string | null;
   role: Role;
@@ -32,7 +32,6 @@ export class UsersService {
         id: true,
         fullName: true,
         username: true,
-        email: true,
         jobTitle: true,
         role: true,
         status: true,
@@ -49,17 +48,12 @@ export class UsersService {
    * رمز موقت تولید و در پاسخ برگردانده می‌شود؛ SMTP لازم نیست. (PM-B1)
    */
   async create(actor: Actor, raw: CreateUserInput) {
-    // ایمیل بدون فرمت درست یا نبودِ fullName قبلاً ۵۰۰ می‌داد.
     const input = parseOrThrow(CreateUserSchema, raw) as CreateUserInput;
-    const rawUsername = String((input as any).username ?? '').toLowerCase().trim();
-    const email = (input.email ?? `${rawUsername}@local`).toLowerCase().trim();
+    // اگر نام‌کاربری ارائه نشده، از نام کامل تولید می‌شود.
+    const rawUsername = String(input.username ?? this.generateUsername(input.fullName)).toLowerCase().trim();
     const usernameTaken = await this.prisma.user.findUnique({ where: { username: rawUsername } });
     if (usernameTaken) {
       throw new AppError(409, 'USERNAME_TAKEN', 'کاربری با این نام‌کاربری از قبل وجود دارد.');
-    }
-    const emailTaken = await this.prisma.user.findUnique({ where: { email } });
-    if (emailTaken) {
-      throw new AppError(409, 'EMAIL_TAKEN', 'کاربری با این ایمیل از قبل وجود دارد.');
     }
 
     if (input.primaryTeamId) {
@@ -78,7 +72,6 @@ export class UsersService {
           organizationId: actor.organizationId,
           fullName: input.fullName.trim(),
           username: rawUsername,
-          email,
           passwordHash: await bcrypt.hash(temporaryPassword, 10),
           jobTitle: input.jobTitle ?? null,
           role: input.role,
@@ -102,7 +95,7 @@ export class UsersService {
           entityType: 'USER',
           entityId: created.id,
           action: 'USER_CREATED',
-          afterJson: JSON.stringify({ email, role: input.role }),
+          afterJson: JSON.stringify({ username: rawUsername, role: input.role }),
         },
       });
 
@@ -112,7 +105,7 @@ export class UsersService {
     return {
       id: user.id,
       fullName: user.fullName,
-      email: user.email,
+      username: user.username,
       role: user.role,
       temporaryPassword,
     };
@@ -319,6 +312,16 @@ export class UsersService {
     });
     if (!user) throw new AppError(404, 'USER_NOT_FOUND', 'کاربر پیدا نشد.');
     return user;
+  }
+
+  /** تولید نام‌کاربری از نام کامل: حذف فاصله و کاراکترهای خاص. */
+  private generateUsername(fullName: string): string {
+    return fullName
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '')
+      .replace(/[^a-zA-Z0-9؀-ۿ]/g, '')
+      .slice(0, 30) || `user${Date.now()}`;
   }
 
   private async audit(actor: Actor, action: string, entityId: string, before?: unknown, after?: unknown) {
