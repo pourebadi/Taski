@@ -61,7 +61,7 @@ npm run test           # تست‌ها
 npm run db:migrate     # اعمال migration
 npm run db:seed        # seed idempotent
 npm run backup:now
-npm run admin:reset-password -- --email=<x>
+npm run admin:reset-password -- --username=<x>
 ```
 
 ## متغیرهای محیطی
@@ -73,7 +73,7 @@ DATABASE_URL="file:./data/app.db"
 JWT_ACCESS_SECRET=
 JWT_REFRESH_SECRET=
 ADMIN_NAME=
-ADMIN_EMAIL=
+ADMIN_USERNAME=
 ADMIN_PASSWORD=
 UPLOAD_MAX_MB=10
 STORAGE_QUOTA_GB=2
