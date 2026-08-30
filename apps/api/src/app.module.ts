@@ -32,7 +32,7 @@ import { RequestIdMiddleware } from './common/request-id.middleware';
     JwtModule.register({ global: true }),
     // سرو کردن build فرانت از همان رانتایم — تک‌اپ. (معماری قفل‌شده)
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'web', 'dist'),
+      rootPath: join(__dirname, '..', '..', '..', 'web', 'dist'),
       exclude: ['/api/{*splat}'],
     }),
   ],
