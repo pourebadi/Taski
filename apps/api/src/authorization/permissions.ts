@@ -2,16 +2,16 @@ import { Role } from '../common/constants';
 
 /** ماتریس دسترسی متمرکز. بررسی پراکنده در کنترلرها ممنوع. (CLAUDE.md قانون ۱) */
 export const PERMISSIONS = [
-  'user.read','user.manage','team.manage','org.settings',
+  'user.read','user.manage','user.delete','team.manage','org.settings',
   'project.read','project.create','project.manage',
-  'workitem.read','workitem.create','workitem.update','workitem.delete',
+  'workitem.read','workitem.create','workitem.update','workitem.delete','workitem.request_delete',
   'workitem.rebaseline','workitem.priority.set',
   'metrics.team.read','metrics.org.read','audit.read',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
 const CONTRIBUTOR: Permission[] = [
-  'user.read','project.read','workitem.read','workitem.create','workitem.update',
+  'user.read','project.read','workitem.read','workitem.create','workitem.update','workitem.request_delete',
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {

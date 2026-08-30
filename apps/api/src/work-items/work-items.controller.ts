@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { WorkItemsService } from './work-items.service';
 import { RequirePermission } from '../authorization/permission.guard';
 
@@ -31,6 +31,12 @@ export class WorkItemsController {
   @Get('search')
   search(@Req() req: any, @Query('q') q: string) {
     return this.items.search(req.user, q ?? '');
+  }
+
+  @RequirePermission('workitem.delete')
+  @Get('deletion-queue')
+  deletionQueue(@Req() req: any) {
+    return this.items.deletionQueue(req.user);
   }
 
   @RequirePermission('workitem.read')
@@ -82,4 +88,23 @@ export class WorkItemsController {
   reBaseline(@Req() req: any, @Param('id') id: string, @Body() body: { newBaseline: string; reasonText: string }) {
     return this.items.reBaseline(req.user, id, body.newBaseline, body.reasonText);
   }
+
+  @RequirePermission('workitem.request_delete')
+  @Post(':id/request-delete')
+  requestDeletion(@Req() req: any, @Param('id') id: string, @Body() body: { reason: string; reasonText?: string }) {
+    return this.items.requestDeletion(req.user, id, body.reason, body.reasonText);
+  }
+
+  @RequirePermission('workitem.delete')
+  @Delete(':id')
+  deleteItem(@Req() req: any, @Param('id') id: string) {
+    return this.items.deleteItem(req.user, id);
+  }
+
+  @RequirePermission('workitem.delete')
+  @Post(':id/reject-delete')
+  rejectDeletion(@Req() req: any, @Param('id') id: string, @Body() body: { explanation: string }) {
+    return this.items.rejectDeletion(req.user, id, body.explanation);
+  }
+
 }

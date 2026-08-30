@@ -35,6 +35,7 @@ export const STATES: Term[] = [
   { value: 'IN_QA', fa: 'در حال تست', en: 'QA', tone: 'warn', hint: 'در مرحله‌ی آزمون کیفیت است.' },
   { value: 'DONE', fa: 'انجام شد', en: 'Done', tone: 'ok', hint: 'تمام و تأیید شد.' },
   { value: 'CANCELLED', fa: 'لغو شد', en: 'Cancelled', tone: 'unknown', hint: 'متوقف و بسته شد؛ دیگر دنبال نمی‌شود.' },
+  { value: 'PENDING_DELETE', fa: 'در صف حذف', en: 'Pending Delete', tone: 'danger', hint: 'درخواست حذف داده شده؛ منتظر تأیید مدیر.' },
 ];
 
 // ── اولویت ── مهم‌ترین تغییر: کد هرگز تنها نمی‌آید، همیشه با معنایش ──

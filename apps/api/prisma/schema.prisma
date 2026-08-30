@@ -162,7 +162,7 @@ model WorkItem {
   workType       String  @default("TASK")
   // PRODUCT | TECH_DEBT | SUPPORT | INFRASTRUCTURE
   workStream     String
-  // INBOX|BACKLOG|READY|IN_PROGRESS|IN_REVIEW|IN_QA|DONE|CANCELLED
+  // INBOX|BACKLOG|READY|IN_PROGRESS|IN_REVIEW|IN_QA|DONE|CANCELLED|PENDING_DELETE
   workflowState  String  @default("BACKLOG")
   // ON_TRACK | AT_RISK | BLOCKED | UNKNOWN — مستقل از workflowState
   deliveryHealth String  @default("ON_TRACK")
@@ -189,6 +189,13 @@ model WorkItem {
   estimateHours   Float?
 
   acceptanceCriteria String?
+
+  // درخواست حذف — وقتی کاربر عادی درخواست حذف میده
+  deletionReason        String?   // DUPLICATE|NOT_RELEVANT|CREATED_BY_MISTAKE|SCOPE_CHANGED|OTHER
+  deletionReasonText    String?
+  deletionRequestedById String?
+  previousState         String?   // state قبل از PENDING_DELETE، برای برگشت
+
   createdById     String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt

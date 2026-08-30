@@ -5,7 +5,7 @@ import { KeySequenceService } from '../key-sequence/key-sequence.service';
 import { WorkingCalendarService } from '../calendar/working-calendar.service';
 import { AppError } from '../common/errors';
 import { normalizeFa } from '../common/text';
-import { ALLOWED_TRANSITIONS, WorkflowState, CommitmentReason, ACTIVE_STATES, STALE_AFTER_WORKING_DAYS, REASON_REQUIRED_FIELDS, TrackedField } from '../common/constants';
+import { ALLOWED_TRANSITIONS, WorkflowState, CommitmentReason, ACTIVE_STATES, STALE_AFTER_WORKING_DAYS, REASON_REQUIRED_FIELDS, TrackedField, DELETION_REASONS, DeletionReason } from '../common/constants';
 import { can } from '../authorization/permissions';
 import { Role } from '../common/constants';
 import {
@@ -776,6 +776,133 @@ export class WorkItemsService {
       where: { id: teamId, organizationId: actor.organizationId },
     });
     if (!team) throw new AppError(422, 'TEAM_NOT_FOUND', 'تیم انتخاب‌شده پیدا نشد.');
+  }
+
+  async requestDeletion(actor: Actor, id: string, reason: string, reasonText?: string) {
+    if (!DELETION_REASONS.includes(reason as DeletionReason)) {
+      throw new AppError(422, 'INVALID_REASON', 'علت حذف نامعتبر است.');
+    }
+    const item = await this.mustFind(actor, id);
+    if (item.workflowState === 'PENDING_DELETE') {
+      throw new AppError(422, 'ALREADY_PENDING', 'این کار قبلاً در صف حذف قرار دارد.');
+    }
+    if (['DONE', 'CANCELLED'].includes(item.workflowState)) {
+      throw new AppError(422, 'CLOSED_ITEM', 'کار بسته‌شده قابل درخواست حذف نیست.');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.workItem.update({
+        where: { id },
+        data: {
+          previousState: item.workflowState,
+          workflowState: 'PENDING_DELETE',
+          deletionReason: reason,
+          deletionReasonText: reasonText ?? null,
+          deletionRequestedById: actor.id,
+          lastActivityAt: new Date(),
+        },
+      });
+      await tx.activity.create({
+        data: {
+          id: randomUUID(),
+          workItemId: id,
+          actorId: actor.id,
+          action: 'STATE_CHANGED',
+          fromValue: item.workflowState,
+          toValue: 'PENDING_DELETE',
+        },
+      });
+      await tx.changeRecord.create({
+        data: {
+          id: randomUUID(),
+          workItemId: id,
+          field: 'STATE',
+          fromValue: item.workflowState,
+          toValue: 'PENDING_DELETE',
+          reasonType: 'EXTERNAL',
+          reasonText: reasonText ?? reason,
+          changedById: actor.id,
+        },
+      });
+    });
+    return { ok: true };
+  }
+
+  async deleteItem(actor: Actor, id: string) {
+    const item = await this.mustFind(actor, id);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.activity.deleteMany({ where: { workItemId: id } });
+      await tx.comment.deleteMany({ where: { workItemId: id } });
+      await tx.changeRecord.deleteMany({ where: { workItemId: id } });
+      await tx.commitmentHistory.deleteMany({ where: { workItemId: id } });
+      await tx.workItem.delete({ where: { id } });
+    });
+    return { ok: true };
+  }
+
+  async rejectDeletion(actor: Actor, id: string, explanation: string) {
+    if (!explanation || !explanation.trim()) {
+      throw new AppError(422, 'MISSING_EXPLANATION', 'توضیح دلیل رد حذف الزامی است.');
+    }
+    const item = await this.mustFind(actor, id);
+    if (item.workflowState !== 'PENDING_DELETE') {
+      throw new AppError(422, 'NOT_PENDING', 'این کار در صف حذف نیست.');
+    }
+    const restoreState = (item.previousState as WorkflowState) || 'BACKLOG';
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.workItem.update({
+        where: { id },
+        data: {
+          workflowState: restoreState,
+          previousState: null,
+          deletionReason: null,
+          deletionReasonText: null,
+          deletionRequestedById: null,
+          lastActivityAt: new Date(),
+        },
+      });
+      await tx.activity.create({
+        data: {
+          id: randomUUID(),
+          workItemId: id,
+          actorId: actor.id,
+          action: 'STATE_CHANGED',
+          fromValue: 'PENDING_DELETE',
+          toValue: restoreState,
+        },
+      });
+      await tx.comment.create({
+        data: {
+          id: randomUUID(),
+          workItemId: id,
+          authorId: actor.id,
+          body: `درخواست حذف رد شد: ${explanation.trim()}`,
+        },
+      });
+    });
+    return { ok: true };
+  }
+
+  async deletionQueue(actor: Actor) {
+    return this.prisma.workItem.findMany({
+      where: {
+        organizationId: actor.organizationId,
+        workflowState: 'PENDING_DELETE',
+      },
+      select: {
+        id: true,
+        key: true,
+        title: true,
+        deletionReason: true,
+        deletionReasonText: true,
+        deletionRequestedById: true,
+        previousState: true,
+        lastActivityAt: true,
+        project: { select: { id: true, name: true } },
+      },
+      orderBy: { lastActivityAt: 'desc' },
+    });
   }
 
   private async mustFind(actor: Actor, id: string) {

@@ -136,6 +136,9 @@ export default function WorkItemDrawer({
   const [users, setUsers] = useState<{ id: string; fullName: string }[]>([]);
   const [siblings, setSiblings] = useState<{ id: string; key: string; title: string }[]>([]);
   const [sendBack, setSendBack] = useState<{ reasonType?: string; reasonText: string } | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('DUPLICATE');
+  const [deleteReasonText, setDeleteReasonText] = useState('');
   const user = useAuth((s) => s.user);
   const { message } = AntApp.useApp();
 
@@ -239,6 +242,34 @@ export default function WorkItemDrawer({
     }
   };
 
+  const submitDeleteRequest = async () => {
+    try {
+      await api(`/work-items/${id}/request-delete`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: deleteReason, reasonText: deleteReasonText || undefined }),
+      });
+      message.success('درخواست حذف ثبت شد.');
+      setDeleteOpen(false);
+      setDeleteReason('DUPLICATE');
+      setDeleteReasonText('');
+      load();
+      onChanged();
+    } catch (e) {
+      message.error((e as Error).message);
+    }
+  };
+
+  const handleDeleteItem = async () => {
+    try {
+      await api(`/work-items/${id}`, { method: 'DELETE' });
+      message.success('کار حذف شد.');
+      onClose();
+      onChanged();
+    } catch (e) {
+      message.error((e as Error).message);
+    }
+  };
+
   // شرط قبلی فقط !data را می‌گرفت. اگر سرور چیزی برمی‌گرداند که item ندارد
   // — پاسخ ناقص، شکل غیرمنتظره، یا بدنه‌ی خالی — همین‌جا کل صفحه سفید می‌شد.
   if (!data?.item) {
@@ -313,9 +344,22 @@ export default function WorkItemDrawer({
         <Button onClick={() => setTracked('ASSIGNEE')}>مجری</Button>
         <Button onClick={() => setTracked('OWNER')}>مسئول</Button>
         <Button onClick={() => setTracked('DUE_DATE')}>مهلت</Button>
-        {item.workflowState !== 'CANCELLED' && (
+        {item.workflowState !== 'CANCELLED' && item.workflowState !== 'PENDING_DELETE' && (
           <Button danger onClick={() => setTracked('CANCEL')}>
             لغو
+          </Button>
+        )}
+        {item.workflowState !== 'PENDING_DELETE' &&
+          item.workflowState !== 'DONE' &&
+          item.workflowState !== 'CANCELLED' &&
+          !['ORG_OWNER', 'ADMIN'].includes(user?.role ?? '') && (
+          <Button danger onClick={() => setDeleteOpen(true)}>
+            {t('deletion.requestDelete')}
+          </Button>
+        )}
+        {['ORG_OWNER', 'ADMIN'].includes(user?.role ?? '') && (
+          <Button danger type="primary" onClick={handleDeleteItem}>
+            {t('deletion.deleteNow')}
           </Button>
         )}
       </Space>
@@ -642,6 +686,42 @@ export default function WorkItemDrawer({
           item={{ ...item, id }}
         />
       )}
+
+      <Modal
+        open={deleteOpen}
+        title={t('deletion.requestDelete')}
+        onCancel={() => setDeleteOpen(false)}
+        onOk={submitDeleteRequest}
+        okText={t('deletion.requestDelete')}
+        okButtonProps={{ danger: true }}
+        cancelText={t('common.cancel')}
+        destroyOnClose
+      >
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontWeight: 500, marginBottom: 4, display: 'block' }}>{t('deletion.reason')}</label>
+          <Select
+            style={{ width: '100%' }}
+            value={deleteReason}
+            onChange={setDeleteReason}
+            options={[
+              { value: 'DUPLICATE', label: t('deletion.reason.DUPLICATE') },
+              { value: 'NOT_RELEVANT', label: t('deletion.reason.NOT_RELEVANT') },
+              { value: 'CREATED_BY_MISTAKE', label: t('deletion.reason.CREATED_BY_MISTAKE') },
+              { value: 'SCOPE_CHANGED', label: t('deletion.reason.SCOPE_CHANGED') },
+              { value: 'OTHER', label: t('deletion.reason.OTHER') },
+            ]}
+          />
+        </div>
+        <div>
+          <label style={{ fontWeight: 500, marginBottom: 4, display: 'block' }}>{t('deletion.reasonText')}</label>
+          <Input.TextArea
+            rows={2}
+            value={deleteReasonText}
+            onChange={(e) => setDeleteReasonText(e.target.value)}
+            placeholder={t('deletion.reasonText')}
+          />
+        </div>
+      </Modal>
     </Drawer>
   );
 }

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Alert,
+  Badge,
   Button,
   Card,
   Dropdown,
+  Empty,
   Form,
   Input,
   InputNumber,
@@ -12,10 +14,12 @@ import {
   Skeleton,
   Space,
   Table,
+  Tabs,
+  Tag,
   Typography,
   App as AntApp,
 } from 'antd';
-import { MoreOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, MoreOutlined, PlusOutlined, RollbackOutlined } from '@ant-design/icons';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
 import { options } from '../lib/terms';
@@ -35,6 +39,18 @@ type User = {
 
 type Team = { id: string; name: string };
 
+type DeletionQueueItem = {
+  id: string;
+  key: string;
+  title: string;
+  deletionReason: string | null;
+  deletionReasonText: string | null;
+  deletionRequestedById: string | null;
+  previousState: string | null;
+  lastActivityAt: string;
+  project: { id: string; name: string } | null;
+};
+
 const STATUS: Record<string, { label: string; tone: 'ok' | 'warn' | 'unknown' }> = {
   ACTIVE: { label: 'فعال', tone: 'ok' },
   SUSPENDED: { label: 'معلق', tone: 'warn' },
@@ -51,12 +67,16 @@ export default function Admin() {
     null,
   );
   const [reassignTo, setReassignTo] = useState<string | undefined>();
+  const [queue, setQueue] = useState<DeletionQueueItem[]>([]);
+  const [rejectTarget, setRejectTarget] = useState<DeletionQueueItem | null>(null);
+  const [rejectText, setRejectText] = useState('');
   const [form] = Form.useForm();
   const { message, modal } = AntApp.useApp();
 
   const load = useCallback(() => {
     api<User[]>('/users').then(setUsers).catch(() => setUsers([]));
     api<Team[]>('/teams').then(setTeams).catch(() => setTeams([]));
+    api<DeletionQueueItem[]>('/work-items/deletion-queue').then((r) => setQueue(r ?? [])).catch(() => setQueue([]));
   }, []);
 
   useEffect(load, [load]);
@@ -167,6 +187,51 @@ export default function Admin() {
     }
   };
 
+  const confirmDeleteUser = (row: User) => {
+    modal.confirm({
+      title: t('deletion.deleteUser'),
+      content: t('deletion.confirmDeleteUser'),
+      okText: t('deletion.deleteUser'),
+      okButtonProps: { danger: true },
+      cancelText: t('common.cancel'),
+      onOk: async () => {
+        try {
+          await api(`/users/${row.id}`, { method: 'DELETE' });
+          message.success('کاربر حذف شد.');
+          load();
+        } catch (e) {
+          message.error((e as Error).message);
+        }
+      },
+    });
+  };
+
+  const approveDelete = async (item: DeletionQueueItem) => {
+    try {
+      await api(`/work-items/${item.id}`, { method: 'DELETE' });
+      message.success(`«${item.key}» حذف شد.`);
+      load();
+    } catch (e) {
+      message.error((e as Error).message);
+    }
+  };
+
+  const doRejectDelete = async () => {
+    if (!rejectTarget || !rejectText.trim()) return;
+    try {
+      await api(`/work-items/${rejectTarget.id}/reject-delete`, {
+        method: 'POST',
+        body: JSON.stringify({ explanation: rejectText.trim() }),
+      });
+      message.success('درخواست حذف رد شد و کار برگردانده شد.');
+      setRejectTarget(null);
+      setRejectText('');
+      load();
+    } catch (e) {
+      message.error((e as Error).message);
+    }
+  };
+
   return (
     <>
       <div className="page-head">
@@ -181,14 +246,20 @@ export default function Admin() {
         </Button>
       </div>
 
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16 }}
-        message="سمت سازمانی هیچ دسترسی‌ای نمی‌دهد؛ فقط نقش نرم‌افزاری تعیین‌کننده است."
-      />
-
-      <Card styles={{ body: { padding: 0 } }}>
+      <Tabs
+        items={[
+          {
+            key: 'users',
+            label: t('deletion.users'),
+            children: (
+              <>
+                <Alert
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 16 }}
+                  message="سمت سازمانی هیچ دسترسی‌ای نمی‌دهد؛ فقط نقش نرم‌افزاری تعیین‌کننده است."
+                />
+                <Card styles={{ body: { padding: 0 } }}>
         {!users ? (
           <div style={{ padding: 20 }}>
             <Skeleton active />
@@ -278,6 +349,13 @@ export default function Admin() {
                               onClick: () => changeStatus(row.id, 'DISABLED'),
                             }
                           : { key: 'enable', label: 'فعال کردن حساب', onClick: () => changeStatus(row.id, 'ACTIVE') },
+                        { type: 'divider' },
+                        {
+                          key: 'delete',
+                          danger: true,
+                          label: t('deletion.deleteUser'),
+                          onClick: () => confirmDeleteUser(row),
+                        },
                       ],
                     }}
                   >
@@ -289,6 +367,83 @@ export default function Admin() {
           />
         )}
       </Card>
+              </>
+            ),
+          },
+          {
+            key: 'deletion-queue',
+            label: <Badge count={queue.length} offset={[8, 0]} size="small">{t('deletion.queue')}</Badge>,
+            children: queue.length === 0 ? (
+              <Empty description={t('deletion.noItems')} />
+            ) : (
+              <Card styles={{ body: { padding: 0 } }}>
+                <Table<DeletionQueueItem>
+                  rowKey="id"
+                  dataSource={queue}
+                  pagination={false}
+                  columns={[
+                    {
+                      title: 'کار',
+                      render: (_, row) => (
+                        <div>
+                          <Tag>{row.key}</Tag> {row.title}
+                        </div>
+                      ),
+                    },
+                    {
+                      title: 'پروژه',
+                      width: 140,
+                      render: (_, row) => row.project?.name ?? t('common.noProject'),
+                    },
+                    {
+                      title: t('deletion.reason'),
+                      width: 160,
+                      render: (_, row) => (
+                        <div>
+                          <div>{t(`deletion.reason.${row.deletionReason}`)}</div>
+                          {row.deletionReasonText && (
+                            <div style={{ fontSize: 11.5, color: 'var(--text-faint)' }}>{row.deletionReasonText}</div>
+                          )}
+                        </div>
+                      ),
+                    },
+                    {
+                      title: 'وضعیت قبلی',
+                      dataIndex: 'previousState',
+                      width: 130,
+                      render: (v) => v ? t(`state.${v}`) : '—',
+                    },
+                    {
+                      title: <span className="sr-only">عملیات</span>,
+                      width: 180,
+                      render: (_, row) => (
+                        <Space>
+                          <Button
+                            type="primary"
+                            danger
+                            size="small"
+                            icon={<DeleteOutlined />}
+                            onClick={() => approveDelete(row)}
+                          >
+                            {t('deletion.approve')}
+                          </Button>
+                          <Button
+                            size="small"
+                            icon={<RollbackOutlined />}
+                            onClick={() => { setRejectTarget(row); setRejectText(''); }}
+                          >
+                            {t('deletion.reject')}
+                          </Button>
+                        </Space>
+                      ),
+                    },
+                  ]}
+                />
+              </Card>
+            ),
+          },
+        ]}
+      />
 
       {/* واگذاری پیش از خروج — API از قبل بود ولی هیچ دکمه‌ای نداشت */}
       <Modal
@@ -389,6 +544,25 @@ export default function Admin() {
             <InputNumber min={0} max={80} style={{ width: '100%' }} addonAfter="ساعت در هفته" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        open={!!rejectTarget}
+        title={`${t('deletion.reject')}: ${rejectTarget?.key ?? ''}`}
+        onCancel={() => setRejectTarget(null)}
+        onOk={doRejectDelete}
+        okButtonProps={{ disabled: !rejectText.trim() }}
+        okText={t('deletion.reject')}
+        cancelText={t('common.cancel')}
+        destroyOnClose
+      >
+        <p style={{ marginTop: 0 }}>{t('deletion.rejectExplanation')}</p>
+        <Input.TextArea
+          rows={3}
+          value={rejectText}
+          onChange={(e) => setRejectText(e.target.value)}
+          placeholder={t('deletion.rejectExplanation')}
+        />
       </Modal>
     </>
   );

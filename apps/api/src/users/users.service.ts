@@ -218,6 +218,33 @@ export class UsersService {
     return { id: updated.id, weeklyCapacityHours: updated.weeklyCapacityHours };
   }
 
+  async deleteUser(actor: Actor, userId: string) {
+    if (userId === actor.id) {
+      throw new AppError(422, 'SELF_DELETE', 'نمی‌توانید حساب خودتان را حذف کنید.');
+    }
+    const user = await this.mustFind(actor, userId);
+
+    if (ADMIN_ROLES.includes(user.role as Role)) {
+      await this.assertNotLastAdmin(actor.organizationId, userId);
+    }
+
+    const impact = await this.offboardingImpact(actor, userId);
+    if (impact.openOwned + impact.openAssigned + impact.pendingReviews > 0) {
+      throw new AppError(422, 'HAS_OPEN_WORK', 'ابتدا کارهای باز این کاربر را واگذار کنید.');
+    }
+
+    await this.audit(actor, 'USER_DELETED', userId, { fullName: user.fullName, username: user.username });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.session.deleteMany({ where: { userId } });
+      await tx.teamMember.deleteMany({ where: { userId } });
+      await tx.projectMember.deleteMany({ where: { userId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    return { ok: true };
+  }
+
   async reassignAll(actor: Actor, fromUserId: string, toUserId: string) {
     if (fromUserId === toUserId) {
       throw new AppError(422, 'SAME_USER', 'مبدأ و مقصد واگذاری نمی‌تواند یک نفر باشد.');

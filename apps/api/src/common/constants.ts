@@ -5,7 +5,7 @@ export type Role = (typeof ROLES)[number];
 
 export const USER_STATUS = ['ACTIVE','SUSPENDED','DISABLED'] as const;
 
-export const WORKFLOW_STATES = ['INBOX','BACKLOG','READY','IN_PROGRESS','IN_REVIEW','IN_QA','DONE','CANCELLED'] as const;
+export const WORKFLOW_STATES = ['INBOX','BACKLOG','READY','IN_PROGRESS','IN_REVIEW','IN_QA','DONE','CANCELLED','PENDING_DELETE'] as const;
 export type WorkflowState = (typeof WORKFLOW_STATES)[number];
 
 export const DELIVERY_HEALTH = ['ON_TRACK','AT_RISK','BLOCKED','UNKNOWN'] as const;
@@ -34,9 +34,13 @@ export const ALLOWED_TRANSITIONS: Record<WorkflowState, WorkflowState[]> = {
   IN_QA:       ['IN_PROGRESS','DONE','CANCELLED'],
   DONE:        ['IN_PROGRESS'],
   CANCELLED:   ['BACKLOG'],
+  PENDING_DELETE: [],
 };
 
 export const ACTIVE_STATES: WorkflowState[] = ['READY','IN_PROGRESS','IN_REVIEW','IN_QA'];
+
+export const DELETION_REASONS = ['DUPLICATE','NOT_RELEVANT','CREATED_BY_MISTAKE','SCOPE_CHANGED','OTHER'] as const;
+export type DeletionReason = (typeof DELETION_REASONS)[number];
 
 /** کار فعالی که این تعداد روز کاری بی‌حرکت بماند، خودکار UNKNOWN می‌شود. (D-007) */
 export const STALE_AFTER_WORKING_DAYS = 7;

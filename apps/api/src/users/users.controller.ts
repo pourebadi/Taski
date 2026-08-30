@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { RequirePermission } from '../authorization/permission.guard';
 
@@ -52,5 +52,11 @@ export class UsersController {
   @Post(':id/reassign-to/:targetId')
   reassign(@Req() req: any, @Param('id') id: string, @Param('targetId') targetId: string) {
     return this.users.reassignAll(req.user, id, targetId);
+  }
+
+  @RequirePermission('user.delete')
+  @Delete(':id')
+  deleteUser(@Req() req: any, @Param('id') id: string) {
+    return this.users.deleteUser(req.user, id);
   }
 }
