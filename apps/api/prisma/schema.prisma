@@ -18,6 +18,8 @@ model Organization {
   weekStart String   @default("SATURDAY")
   // روزهای کاری: شنبه تا پنجشنبه. فقط جمعه تعطیل. (D-002)
   workingDays String @default("SAT,SUN,MON,TUE,WED,THU")
+  // چیدمان بورد در سطح نمایش (JSON): ترتیب/نمایش/نام ستون‌ها. states دست‌نخورده می‌مانند.
+  boardConfig String?
   createdAt DateTime @default(now())
 
   users     User[]

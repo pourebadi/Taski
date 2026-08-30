@@ -22,6 +22,8 @@ import { ProjectsService } from './projects/projects.service';
 import { ProjectsController } from './projects/projects.controller';
 import { AnalyticsService } from './analytics/analytics.service';
 import { AnalyticsController } from './analytics/analytics.controller';
+import { OrganizationService } from './organization/organization.service';
+import { OrganizationController } from './organization/organization.controller';
 import { SchedulerService } from './scheduler/scheduler.service';
 import { HealthController } from './health/health.controller';
 import { RequestIdMiddleware } from './common/request-id.middleware';
@@ -43,6 +45,7 @@ import { RequestIdMiddleware } from './common/request-id.middleware';
     ProjectsController,
     WorkItemsController,
     AnalyticsController,
+    OrganizationController,
     HealthController,
   ],
   providers: [
@@ -55,6 +58,7 @@ import { RequestIdMiddleware } from './common/request-id.middleware';
     TeamsService,
     ProjectsService,
     AnalyticsService,
+    OrganizationService,
     SchedulerService,
     { provide: APP_GUARD, useClass: JwtGuard },
     { provide: APP_GUARD, useClass: PermissionGuard },

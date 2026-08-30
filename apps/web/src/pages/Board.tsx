@@ -12,28 +12,30 @@ import {
   DragOverlay,
 } from '@dnd-kit/core';
 import { Button, Select, Space, Tooltip, App as AntApp } from 'antd';
-import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
-import { options, priorityOptions, label as termLabel, labelDual } from '../lib/terms';
+import { options, priorityOptions, label as termLabel } from '../lib/terms';
 import { faDigits, hoursToWorkingDays } from '../lib/date';
+import { useAuth } from '../lib/auth-store';
+import { type BoardColumn, FLOW_STATES, effectiveColumns, columnLabel } from '../lib/board-config';
 import DraggableCard from '../components/DraggableCard';
 import WorkItemCard from '../components/WorkItemCard';
 import CreateWorkItemModal from '../components/CreateWorkItemModal';
 import CommitmentModal from '../components/CommitmentModal';
 import WorkItemDrawer from '../components/WorkItemDrawer';
+import BoardSettings from '../components/BoardSettings';
 import type { WorkItem } from '../components/WorkItemCard';
-
-// «ورودی (Inbox)» قبلاً جا افتاده بود و کارهای تازه‌رسیده از بورد نامرئی بودند. (FE-1)
-const COLUMNS = ['INBOX', 'BACKLOG', 'READY', 'IN_PROGRESS', 'IN_REVIEW', 'IN_QA', 'DONE'] as const;
 
 function Column({
   state,
+  label,
   items,
   onOpen,
   nameOf,
 }: {
   state: string;
+  label: string;
   items: WorkItem[];
   onOpen: (id: string) => void;
   nameOf: (id?: string | null) => string | undefined;
@@ -45,10 +47,10 @@ function Column({
   const estDays = Math.round(hoursToWorkingDays(estHours) * 10) / 10;
 
   return (
-    <section className="board-column" aria-label={`${termLabel('state', state)} — ${items.length} کار`}>
+    <section className="board-column" aria-label={`${label} — ${items.length} کار`}>
       <header className="board-column-head">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-          <span style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>{labelDual('state', state)}</span>
+          <span style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>{label}</span>
           {estHours > 0 && (
             <span style={{ fontSize: 11, color: 'var(--text-faint)' }} className="tabular">
               ≈ {faDigits(estDays)} روز کاری
@@ -88,6 +90,10 @@ export default function Board() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<WorkItem | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const [boardCols, setBoardCols] = useState<BoardColumn[] | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const role = useAuth((s) => s.user?.role);
+  const canConfigure = ['ORG_OWNER', 'ADMIN'].includes(role ?? '');
   const { message } = AntApp.useApp();
 
   // KeyboardSensor نبود، پس بورد با کیبورد اصلاً قابل استفاده نبود.
@@ -108,7 +114,14 @@ export default function Board() {
   useEffect(load, [load]);
   useEffect(() => {
     api<any[]>('/users').then(setUsers).catch(() => setUsers([]));
+    // چیدمان بورد که مدیر تنظیم کرده (per-org)؛ null یعنی پیش‌فرض
+    api<{ columns: BoardColumn[] | null }>('/organization/board-config')
+      .then((r) => setBoardCols(r.columns))
+      .catch(() => setBoardCols(null));
   }, []);
+
+  // ستون‌های نمایان به ترتیب و با نامِ تنظیم‌شده
+  const visibleColumns = useMemo(() => effectiveColumns(boardCols).filter((c) => c.visible), [boardCols]);
 
   const nameOf = useCallback(
     (id?: string | null) => users.find((u) => u.id === id)?.fullName,
@@ -116,7 +129,7 @@ export default function Board() {
   );
 
   const grouped = useMemo(() => {
-    const map = new Map<string, WorkItem[]>(COLUMNS.map((c) => [c, []]));
+    const map = new Map<string, WorkItem[]>(FLOW_STATES.map((c) => [c, []]));
     for (const i of items) map.get(i.workflowState)?.push(i);
     return map;
   }, [items]);
@@ -196,6 +209,11 @@ export default function Board() {
           <Tooltip title="بارگذاری دوباره">
             <Button icon={<ReloadOutlined />} onClick={load} aria-label="بارگذاری دوباره" />
           </Tooltip>
+          {canConfigure && (
+            <Tooltip title="تنظیم بورد (ستون‌ها)">
+              <Button icon={<SettingOutlined />} onClick={() => setSettingsOpen(true)} aria-label="تنظیم بورد" />
+            </Tooltip>
+          )}
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
             کار جدید
           </Button>
@@ -210,8 +228,15 @@ export default function Board() {
       <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
         {/* در RTL ستون‌ها خودکار از راست چیده می‌شوند */}
         <div className="board-scroll">
-          {COLUMNS.map((c) => (
-            <Column key={c} state={c} items={grouped.get(c) ?? []} onOpen={setOpenId} nameOf={nameOf} />
+          {visibleColumns.map((col) => (
+            <Column
+              key={col.state}
+              state={col.state}
+              label={columnLabel(col)}
+              items={grouped.get(col.state) ?? []}
+              onOpen={setOpenId}
+              nameOf={nameOf}
+            />
           ))}
         </div>
 
@@ -237,6 +262,14 @@ export default function Board() {
         />
       )}
       <WorkItemDrawer id={openId} open={!!openId} onClose={() => setOpenId(null)} onChanged={load} />
+      {canConfigure && (
+        <BoardSettings
+          open={settingsOpen}
+          columns={boardCols}
+          onClose={() => setSettingsOpen(false)}
+          onSaved={(cols) => setBoardCols(cols)}
+        />
+      )}
     </>
   );
 }

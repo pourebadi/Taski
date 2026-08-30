@@ -685,6 +685,53 @@ body {
   transition: transform 0.15s ease;
 }
 
+/* تنظیم بورد — کارت مدل‌های آماده و ردیف ستون‌ها */
+.preset-card {
+  text-align: start;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
+}
+.preset-card:hover {
+  border-color: var(--brand-line);
+  box-shadow: var(--shadow-1);
+  transform: translateY(-1px);
+}
+.col-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+}
+.col-row[data-off='true'] {
+  opacity: 0.55;
+  background: var(--surface-sunken);
+}
+.col-move {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 15px;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 9px;
+}
+.col-move:hover:not(:disabled) {
+  color: var(--brand);
+}
+.col-move:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
 /* نوار تأیید در دراور — وقتی کار منتظر تأیید کاربر است، جلوی چشم و صریح */
 .review-bar {
   display: flex;
