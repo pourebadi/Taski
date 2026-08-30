@@ -532,8 +532,16 @@ body {
   background-clip: content-box;
 }
 
+.ant-table-tbody > tr.row-clickable {
+  cursor: pointer;
+}
 .ant-table-tbody > tr.row-clickable:hover > td {
   background: var(--brand-soft) !important;
+}
+/* کارت وقتی عنصری داخلش فوکوس می‌گیرد هم برجسته شود (پیمایش با کیبورد) */
+.card-interactive:focus-within {
+  border-color: var(--brand-line);
+  box-shadow: var(--shadow-2);
 }
 
 /* ───────────────────────────────────────────────────────────────

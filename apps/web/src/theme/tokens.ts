@@ -112,10 +112,36 @@ const MENU_SELECTED: Record<ThemeMode, string> = {
   dark: 'rgba(63, 191, 169, 0.20)',
 };
 
+/**
+ * رنگ‌های حالت‌های تعاملی که AntD به‌صورت مقدار مشخص می‌خواهد (نمی‌تواند
+ * var(--x) بخواند). اینها hover/active/focus/disabled را در هر دو تم یکدست
+ * می‌کنند: هاله‌ی فوکوس برند، پس‌زمینه‌ی hover گزینه‌ها، حالت غیرفعال.
+ */
+const INTERACT: Record<ThemeMode, {
+  glow: string; itemHover: string; itemActive: string;
+  disabledBg: string; hoverFill: string;
+}> = {
+  light: {
+    glow: 'rgba(15, 107, 91, 0.14)',
+    itemHover: '#e7f2ee',
+    itemActive: '#d6ebe4',
+    disabledBg: '#f0f3f2',
+    hoverFill: 'rgba(16, 33, 29, 0.04)',
+  },
+  dark: {
+    glow: 'rgba(63, 191, 169, 0.22)',
+    itemHover: '#18342e',
+    itemActive: '#1f4239',
+    disabledBg: '#161f1c',
+    hoverFill: 'rgba(255, 255, 255, 0.05)',
+  },
+};
+
 /** ساخت پیکربندی تم AntD از همان توکن‌ها. */
 export function buildAntdTheme(mode: ThemeMode): ThemeConfig {
   const c = COLOR_TOKENS[mode];
   const s = SHADOW_TOKENS[mode];
+  const x = INTERACT[mode];
   return {
     algorithm: mode === 'dark' ? antdAlgorithms.darkAlgorithm : antdAlgorithms.defaultAlgorithm,
     token: {
@@ -130,11 +156,22 @@ export function buildAntdTheme(mode: ThemeMode): ThemeConfig {
       colorText: c.text,
       colorTextSecondary: c['text-muted'],
       colorTextTertiary: c['text-faint'],
+      colorTextQuaternary: c['text-faint'],
       colorBorder: c['line-soft'],
       colorBorderSecondary: c['line-soft'],
       colorBgLayout: c.canvas,
       colorBgContainer: c.surface,
       colorBgElevated: c.elevated,
+      colorBgSpotlight: mode === 'dark' ? '#25332e' : '#1f2a27',
+      // حالت‌های تعاملی مشترک: hover گزینه‌ها، فوکوس، غیرفعال
+      controlItemBgHover: x.itemHover,
+      controlItemBgActive: x.itemActive,
+      controlItemBgActiveHover: x.itemActive,
+      controlOutline: x.glow,
+      controlOutlineWidth: 3,
+      colorBgTextHover: x.hoverFill,
+      colorBgTextActive: x.itemActive,
+      colorBgContainerDisabled: x.disabledBg,
       borderRadius: 10,
       borderRadiusLG: 14,
       borderRadiusSM: 6,
@@ -153,31 +190,106 @@ export function buildAntdTheme(mode: ThemeMode): ThemeConfig {
         bodyBg: c.canvas,
       },
       Menu: {
+        // منوی سایدبار (تیره در هر دو تم)
         darkItemBg: c['sider-bg'],
         darkSubMenuItemBg: c['sider-bg'],
         darkItemColor: 'rgba(234, 241, 238, 0.72)',
         darkItemSelectedBg: MENU_SELECTED[mode],
         darkItemSelectedColor: '#ffffff',
         darkItemHoverBg: 'rgba(255, 255, 255, 0.06)',
+        // منوهای روشن (Dropdown)
+        itemHoverBg: x.itemHover,
+        itemSelectedBg: c['brand-soft'],
+        itemSelectedColor: c.brand,
+        itemActiveBg: x.itemActive,
         itemMarginInline: 10,
         itemBorderRadius: 8,
         itemHeight: 40,
       },
-      Card: { paddingLG: 18 },
+      Button: {
+        fontWeight: 500,
+        primaryShadow: mode === 'dark' ? 'none' : '0 1px 2px rgba(15, 107, 91, 0.18)',
+        defaultShadow: 'none',
+        dangerShadow: 'none',
+        defaultHoverColor: c.brand,
+        defaultHoverBorderColor: c['brand-line'],
+        defaultActiveColor: c['brand-hover'],
+        defaultActiveBorderColor: c.brand,
+        colorPrimaryHover: c['brand-hover'],
+        colorPrimaryActive: c['brand-hover'],
+        controlHeight: 36,
+        paddingInline: 16,
+      },
+      Input: {
+        hoverBorderColor: c['brand-line'],
+        activeBorderColor: c.brand,
+        activeShadow: `0 0 0 3px ${x.glow}`,
+        controlHeight: 36,
+        colorBgContainer: c.surface,
+      },
+      InputNumber: {
+        hoverBorderColor: c['brand-line'],
+        activeBorderColor: c.brand,
+        activeShadow: `0 0 0 3px ${x.glow}`,
+        controlHeight: 36,
+      },
+      Select: {
+        optionActiveBg: x.itemHover,
+        optionSelectedBg: c['brand-soft'],
+        optionSelectedColor: mode === 'dark' ? c.text : c.brand,
+        optionSelectedFontWeight: 600,
+        hoverBorderColor: c['brand-line'],
+        activeBorderColor: c.brand,
+        activeOutlineColor: x.glow,
+        controlHeight: 36,
+        colorBgElevated: c.elevated,
+      },
+      DatePicker: {
+        hoverBorderColor: c['brand-line'],
+        activeBorderColor: c.brand,
+        activeShadow: `0 0 0 3px ${x.glow}`,
+        colorBgElevated: c.elevated,
+        controlHeight: 36,
+      },
+      Checkbox: { controlInteractiveSize: 18 },
+      Radio: { buttonCheckedBg: c['brand-soft'] },
+      Card: { paddingLG: 18, colorBorderSecondary: c['line-soft'] },
       Table: {
         headerBg: c['surface-sunken'],
         headerColor: c['text-muted'],
+        headerSplitColor: 'transparent',
         rowHoverBg: c['brand-soft'],
         borderColor: c['line-soft'],
+        cellPaddingBlock: 12,
+        colorBgContainer: c.surface,
       },
-      Drawer: { paddingLG: 20 },
+      Drawer: { paddingLG: 20, colorBgElevated: c.surface },
       Modal: { titleFontSize: 16, contentBg: c.elevated, headerBg: c.elevated },
       Popover: { colorBgElevated: c.elevated },
-      Tabs: { titleFontSize: 14 },
+      Dropdown: { colorBgElevated: c.elevated, controlItemBgHover: x.itemHover },
+      Tabs: {
+        titleFontSize: 14,
+        inkBarColor: c.brand,
+        itemColor: c['text-muted'],
+        itemHoverColor: c.brand,
+        itemSelectedColor: c.text,
+        itemActiveColor: c['brand-hover'],
+      },
       Statistic: { titleFontSize: 12, contentFontSize: 24 },
-      Segmented: { itemSelectedBg: c.surface, trackBg: c['surface-sunken'] },
-      Tag: { defaultBg: c['surface-sunken'] },
+      Segmented: {
+        itemSelectedBg: c.surface,
+        itemHoverBg: x.itemHover,
+        itemSelectedColor: c.brand,
+        itemColor: c['text-muted'],
+        trackBg: c['surface-sunken'],
+      },
+      Tag: { defaultBg: c['surface-sunken'], defaultColor: c['text-muted'] },
       Tooltip: { colorBgSpotlight: mode === 'dark' ? '#25332e' : '#1f2a27' },
+      Alert: { colorInfoBg: c['brand-soft'], colorInfoBorder: c['brand-line'] },
+      Skeleton: { colorFill: x.itemHover },
+      Switch: { colorPrimary: c.brand },
+      Message: { colorBgElevated: c.elevated },
+      Notification: { colorBgElevated: c.elevated },
     },
   };
 }
