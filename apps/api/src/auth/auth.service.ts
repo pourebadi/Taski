@@ -30,7 +30,7 @@ export class AuthService {
 
     const accessToken = await this.jwt.signAsync(
       { sub: user.id, role: user.role, org: user.organizationId },
-      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: process.env.ACCESS_TOKEN_TTL ?? '15m' },
+      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: (process.env.ACCESS_TOKEN_TTL ?? '15m') as any },
     );
 
     const refreshToken = randomUUID() + randomUUID();
@@ -73,7 +73,7 @@ export class AuthService {
     }
     const accessToken = await this.jwt.signAsync(
       { sub: session.userId, role: session.user.role, org: session.user.organizationId },
-      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: process.env.ACCESS_TOKEN_TTL ?? '15m' },
+      { secret: process.env.JWT_ACCESS_SECRET, expiresIn: (process.env.ACCESS_TOKEN_TTL ?? '15m') as any },
     );
     return { accessToken };
   }
