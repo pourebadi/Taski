@@ -178,7 +178,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <div style={{ padding: '4px 0', minWidth: 170 }}>
                       <div style={{ fontWeight: 600 }}>{user?.fullName}</div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', direction: 'ltr', textAlign: 'start' }}>
-                        {user?.email}
+                        @{user?.username ?? user?.email}
                       </div>
                       <div style={{ fontSize: 12, color: 'var(--brand)', marginTop: 2 }}>
                         {termLabel('role', user?.role ?? '')}

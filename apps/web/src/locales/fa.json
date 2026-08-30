@@ -7,6 +7,7 @@
   "nav.admin": "مدیریت",
   "auth.login": "ورود",
   "auth.email": "ایمیل",
+  "auth.username": "نام‌کاربری",
   "auth.password": "رمز عبور",
   "auth.logout": "خروج",
   "auth.changePassword": "تغییر رمز عبور",

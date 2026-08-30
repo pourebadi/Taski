@@ -44,6 +44,8 @@ model User {
   id             String  @id
   organizationId String
   fullName       String
+  // هویت ورود: نام‌کاربری. ایمیل اختیاری و ثانویه شد.
+  username       String? @unique
   email          String  @unique
   passwordHash   String
   // سمت سازمانی — هیچ مجوزی نمی‌دهد (D: job title != permission)

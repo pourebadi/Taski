@@ -18,8 +18,8 @@ beforeAll(async () => {
   prisma = new HarnessPrisma(join(dir, 'app.db'));
   items = new WorkItemsService(prisma, new KeySequenceService(), calendar);
   await prisma.organization.create({ data: { id: ORG, name: 'تست' } });
-  await prisma.user.create({ data: { id: 'lead', organizationId: ORG, fullName: 'سرپرست', email: 'l@x.c', passwordHash: 'h', role: 'TEAM_LEAD', status: 'ACTIVE' } });
-  await prisma.user.create({ data: { id: 'dev', organizationId: ORG, fullName: 'مجری', email: 'd@x.c', passwordHash: 'h', role: 'CONTRIBUTOR', status: 'ACTIVE' } });
+  await prisma.user.create({ data: { id: 'lead', organizationId: ORG, fullName: 'سرپرست', username: 'lead', email: 'l@x.c', passwordHash: 'h', role: 'TEAM_LEAD', status: 'ACTIVE' } });
+  await prisma.user.create({ data: { id: 'dev', organizationId: ORG, fullName: 'مجری', username: 'dev', email: 'd@x.c', passwordHash: 'h', role: 'CONTRIBUTOR', status: 'ACTIVE' } });
   const item = await items.create(lead, {
     title: 'کار نمونه', workType: 'TASK', workStream: 'PRODUCT', priority: 'P2', ownerId: 'lead',
   });

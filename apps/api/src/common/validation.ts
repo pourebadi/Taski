@@ -109,14 +109,22 @@ export const UpdateProjectSchema = z.object({
 
 export const CreateUserSchema = z.object({
   fullName: trimmed(150),
-  // عمداً سخت‌گیرتر از این نیست: بخش محلی ایمیل در این سامانه فارسی هم هست
-  // (مثل ترابی@ipx.local) و .email() زod آن را رد می‌کند.
+  // هویت ورود. بدون فاصله و بدون @؛ فارسی هم مجاز است.
+  username: z
+    .string()
+    .trim()
+    .min(3, { message: 'نام‌کاربری حداقل ۳ نویسه.' })
+    .max(30)
+    .regex(/^[^\s@]+$/, { message: 'نام‌کاربری نباید فاصله یا @ داشته باشد.' }),
+  // ایمیل حالا اختیاری و ثانویه است. اگر ندهند، از نام‌کاربری ساخته می‌شود.
+  // عمداً سخت‌گیر نیست چون بخش محلی می‌تواند فارسی باشد (مثل ترابی@ipx.local).
   email: z
     .string()
     .trim()
     .toLowerCase()
     .max(254)
-    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/, { message: 'ایمیل معتبر نیست.' }),
+    .regex(/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/, { message: 'ایمیل معتبر نیست.' })
+    .nullish(),
   jobTitle: z.string().max(150).nullish(),
   role: z.enum(ROLES),
   primaryTeamId: id.nullish(),
@@ -134,7 +142,7 @@ export const CreateTeamSchema = z.object({
 export const SetLeadSchema = z.object({ leadId: id });
 
 export const LoginSchema = z.object({
-  email: z.string().trim().min(1).max(254),
+  username: z.string().trim().min(1).max(60),
   password: z.string().min(1).max(200),
 });
 

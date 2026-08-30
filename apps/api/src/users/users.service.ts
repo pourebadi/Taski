@@ -31,6 +31,7 @@ export class UsersService {
       select: {
         id: true,
         fullName: true,
+        username: true,
         email: true,
         jobTitle: true,
         role: true,
@@ -50,9 +51,14 @@ export class UsersService {
   async create(actor: Actor, raw: CreateUserInput) {
     // ایمیل بدون فرمت درست یا نبودِ fullName قبلاً ۵۰۰ می‌داد.
     const input = parseOrThrow(CreateUserSchema, raw) as CreateUserInput;
-    const email = input.email.toLowerCase().trim();
-    const exists = await this.prisma.user.findUnique({ where: { email } });
-    if (exists) {
+    const rawUsername = String((input as any).username ?? '').toLowerCase().trim();
+    const email = (input.email ?? `${rawUsername}@local`).toLowerCase().trim();
+    const usernameTaken = await this.prisma.user.findUnique({ where: { username: rawUsername } });
+    if (usernameTaken) {
+      throw new AppError(409, 'USERNAME_TAKEN', 'کاربری با این نام‌کاربری از قبل وجود دارد.');
+    }
+    const emailTaken = await this.prisma.user.findUnique({ where: { email } });
+    if (emailTaken) {
       throw new AppError(409, 'EMAIL_TAKEN', 'کاربری با این ایمیل از قبل وجود دارد.');
     }
 
@@ -71,6 +77,7 @@ export class UsersService {
           id: randomUUID(),
           organizationId: actor.organizationId,
           fullName: input.fullName.trim(),
+          username: rawUsername,
           email,
           passwordHash: await bcrypt.hash(temporaryPassword, 10),
           jobTitle: input.jobTitle ?? null,

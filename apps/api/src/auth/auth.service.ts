@@ -5,7 +5,7 @@ import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppError } from '../common/errors';
 
-const GENERIC_LOGIN_ERROR = 'ایمیل یا رمز عبور نادرست است.';
+const GENERIC_LOGIN_ERROR = 'نام‌کاربری یا رمز عبور نادرست است.';
 
 @Injectable()
 export class AuthService {
@@ -15,8 +15,8 @@ export class AuthService {
     return createHash('sha256').update(token).digest('hex');
   }
 
-  async login(email: string, password: string, userAgent?: string) {
-    const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+  async login(username: string, password: string, userAgent?: string) {
+    const user = await this.prisma.user.findUnique({ where: { username: username.toLowerCase().trim() } });
 
     // پیام یکسان برای کاربر ناموجود و رمز غلط تا وجود حساب افشا نشود. (PM-A3)
     if (!user) throw new AppError(401, 'INVALID_CREDENTIALS', GENERIC_LOGIN_ERROR);
@@ -53,6 +53,7 @@ export class AuthService {
       user: {
         id: user.id,
         fullName: user.fullName,
+        username: user.username,
         email: user.email,
         role: user.role,
         mustChangePassword: user.mustChangePassword,
@@ -85,6 +86,7 @@ export class AuthService {
       user: {
         id: session.user.id,
         fullName: session.user.fullName,
+        username: session.user.username,
         email: session.user.email,
         role: session.user.role,
         mustChangePassword: session.user.mustChangePassword,
@@ -141,6 +143,7 @@ export class AuthService {
     return {
       id: user.id,
       fullName: user.fullName,
+      username: user.username,
       email: user.email,
       role: user.role,
       mustChangePassword: user.mustChangePassword,

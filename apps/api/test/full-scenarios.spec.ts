@@ -55,7 +55,7 @@ beforeAll(async () => {
   await prisma.organization.create({ data: { id: ORG, name: 'ایران پیمکس', timezone: 'Asia/Tehran' } });
   await prisma.user.create({
     data: {
-      id: admin.id, organizationId: ORG, fullName: 'مدیر سیستم', email: 'admin@ipx.local',
+      id: admin.id, organizationId: ORG, fullName: 'مدیر سیستم', username: 'admin', email: 'admin@ipx.local',
       passwordHash: await bcrypt.hash('Admin-Strong-1', 10), role: 'ORG_OWNER',
       status: 'ACTIVE', mustChangePassword: false, jobTitle: 'مدیرعامل', createdAt: new Date(),
     },
@@ -73,7 +73,7 @@ beforeAll(async () => {
   ];
   for (const [i, [name, title, role, team]] of roster.entries()) {
     const r = await users.create(admin, {
-      fullName: name, email: `${name}@ipx.local`, jobTitle: title,
+      fullName: name, username: `user${i + 1}`, email: `${name}@ipx.local`, jobTitle: title,
       role: role as any, primaryTeamId: T[team],
     });
     P[name] = r.id;

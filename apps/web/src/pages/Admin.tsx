@@ -26,6 +26,7 @@ import { faDigits } from '../lib/date';
 type User = {
   id: string;
   fullName: string;
+  username?: string | null;
   email: string;
   jobTitle?: string | null;
   role: string;
@@ -207,7 +208,7 @@ export default function Admin() {
                   <div>
                     <div style={{ fontWeight: 500 }}>{v}</div>
                     <div style={{ fontSize: 11.5, color: 'var(--text-faint)', direction: 'ltr', textAlign: 'start' }}>
-                      {row.email}
+                      @{row.username ?? row.email}
                     </div>
                   </div>
                 ),
@@ -358,10 +359,16 @@ export default function Admin() {
             <Input />
           </Form.Item>
           <Form.Item
-            name="email"
-            label={t('auth.email')}
-            rules={[{ required: true, message: 'ایمیل را وارد کنید.' }]}
+            name="username"
+            label={t('auth.username')}
+            rules={[
+              { required: true, message: 'نام‌کاربری را وارد کنید.' },
+              { pattern: /^[^\s@]{3,30}$/, message: '۳ تا ۳۰ نویسه، بدون فاصله و @.' },
+            ]}
           >
+            <Input dir="ltr" placeholder="ali" />
+          </Form.Item>
+          <Form.Item name="email" label={<>{t('auth.email')} <span style={{ color: 'var(--text-faint)', fontSize: 11 }}>(اختیاری)</span></>}>
             <Input dir="ltr" />
           </Form.Item>
           <Form.Item name="jobTitle" label={<FieldLabel label="سمت سازمانی" helpKey="jobTitle" />}>
