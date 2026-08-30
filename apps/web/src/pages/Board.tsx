@@ -15,15 +15,16 @@ import { Button, Select, Space, Tooltip, App as AntApp } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
-import { options, priorityOptions } from '../lib/terms';
-import { faDigits } from '../lib/date';
+import { options, priorityOptions, label as termLabel, labelDual } from '../lib/terms';
+import { faDigits, hoursToWorkingDays } from '../lib/date';
 import DraggableCard from '../components/DraggableCard';
 import WorkItemCard from '../components/WorkItemCard';
 import CreateWorkItemModal from '../components/CreateWorkItemModal';
 import WorkItemDrawer from '../components/WorkItemDrawer';
 import type { WorkItem } from '../components/WorkItemCard';
 
-const COLUMNS = ['BACKLOG', 'READY', 'IN_PROGRESS', 'IN_REVIEW', 'IN_QA', 'DONE'] as const;
+// «ورودی (Inbox)» قبلاً جا افتاده بود و کارهای تازه‌رسیده از بورد نامرئی بودند. (FE-1)
+const COLUMNS = ['INBOX', 'BACKLOG', 'READY', 'IN_PROGRESS', 'IN_REVIEW', 'IN_QA', 'DONE'] as const;
 
 function Column({
   state,
@@ -38,10 +39,21 @@ function Column({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: state });
 
+  // جمع تخمین کارهای این ستون — نشان می‌دهد چقدر کار اینجا نشسته
+  const estHours = items.reduce((s, i) => s + (i.estimateHours ?? 0), 0);
+  const estDays = Math.round(hoursToWorkingDays(estHours) * 10) / 10;
+
   return (
-    <section className="board-column" aria-label={`${t(`state.${state}`)} — ${items.length} کار`}>
+    <section className="board-column" aria-label={`${termLabel('state', state)} — ${items.length} کار`}>
       <header className="board-column-head">
-        <span style={{ fontWeight: 600, fontSize: 13 }}>{t(`state.${state}`)}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+          <span style={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>{labelDual('state', state)}</span>
+          {estHours > 0 && (
+            <span style={{ fontSize: 11, color: 'var(--text-faint)' }} className="tabular">
+              ≈ {faDigits(estDays)} روز کاری
+            </span>
+          )}
+        </div>
         <span className="board-count" aria-hidden="true">
           {faDigits(items.length)}
         </span>
@@ -127,7 +139,7 @@ export default function Board() {
     try {
       await api(`/work-items/${id}/state`, { method: 'PATCH', body: JSON.stringify({ state: next }) });
       // نتیجه‌ی جابه‌جایی برای کاربر صفحه‌خوان هم اعلام می‌شود
-      setAnnouncement(`${current.key} به ${t(`state.${next}`)} منتقل شد.`);
+      setAnnouncement(`${current.key} به ${termLabel('state', next)} منتقل شد.`);
     } catch (err) {
       setItems(previous); // بازگشت خوش‌بینانه
       setAnnouncement(`جابه‌جایی ${current.key} انجام نشد.`);
