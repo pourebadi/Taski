@@ -20,6 +20,7 @@ import { faDigits, hoursToWorkingDays } from '../lib/date';
 import DraggableCard from '../components/DraggableCard';
 import WorkItemCard from '../components/WorkItemCard';
 import CreateWorkItemModal from '../components/CreateWorkItemModal';
+import CommitmentModal from '../components/CommitmentModal';
 import WorkItemDrawer from '../components/WorkItemDrawer';
 import type { WorkItem } from '../components/WorkItemCard';
 
@@ -83,6 +84,7 @@ export default function Board() {
   const [filters, setFilters] = useState<{ workStream?: string; priority?: string; assigneeId?: string }>({});
   const [users, setUsers] = useState<{ id: string; fullName: string }[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [commitFor, setCommitFor] = useState<WorkItem | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [dragging, setDragging] = useState<WorkItem | null>(null);
   const [announcement, setAnnouncement] = useState('');
@@ -132,6 +134,13 @@ export default function Board() {
 
     const current = items.find((i) => i.id === id);
     if (!current || current.workflowState === next) return;
+
+    // نرم، نه مانع: شروع کار بدون تعهد → مودال تعهد باز می‌شود. (D-UX-1)
+    if (next === 'IN_PROGRESS' && !current.currentEta) {
+      setCommitFor(current);
+      message.info('برای شروع، اول تخمین و تاریخ تحویل را ثبت کن.');
+      return;
+    }
 
     const previous = items;
     setItems((cur) => cur.map((i) => (i.id === id ? { ...i, workflowState: next } : i)));
@@ -216,6 +225,17 @@ export default function Board() {
       </DndContext>
 
       <CreateWorkItemModal open={createOpen} onClose={() => setCreateOpen(false)} onCreated={load} />
+      {commitFor && (
+        <CommitmentModal
+          open={!!commitFor}
+          item={commitFor}
+          onClose={() => setCommitFor(null)}
+          onSaved={() => {
+            setCommitFor(null);
+            load();
+          }}
+        />
+      )}
       <WorkItemDrawer id={openId} open={!!openId} onClose={() => setOpenId(null)} onChanged={load} />
     </>
   );

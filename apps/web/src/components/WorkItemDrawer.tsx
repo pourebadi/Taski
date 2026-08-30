@@ -19,6 +19,7 @@ import {
 import { api } from '../lib/api';
 import { t } from '../lib/i18n';
 import { options, labelDual } from '../lib/terms';
+import { useAuth } from '../lib/auth-store';
 import { toJalali, faDigits } from '../lib/date';
 import CommitmentModal from './CommitmentModal';
 import TrackedChangeModal, { TrackedChange } from './TrackedChangeModal';
@@ -62,6 +63,7 @@ type Detail = {
     healthNote?: string | null;
     requiresReview: boolean;
     requiresQa: boolean;
+    reviewerId?: string | null;
   };
   commitments: Commitment[];
   changes: ChangeRecord[];
@@ -132,6 +134,8 @@ export default function WorkItemDrawer({
   const [healthDraft, setHealthDraft] = useState<{ health: string; note: string } | null>(null);
   const [tracked, setTracked] = useState<TrackedChange | null>(null);
   const [users, setUsers] = useState<{ id: string; fullName: string }[]>([]);
+  const [sendBack, setSendBack] = useState<{ reasonType?: string; reasonText: string } | null>(null);
+  const user = useAuth((s) => s.user);
   const { message } = AntApp.useApp();
 
   const load = () => {
@@ -172,21 +176,38 @@ export default function WorkItemDrawer({
     }
   };
 
-  const changeState = async (next: string) => {
+  const changeState = async (next: string, reason?: { reasonType: string; reasonText?: string }) => {
     // لغو باید علت داشته باشد، پس از مسیر مودال ردیابی‌شده می‌رود
     if (next === 'CANCELLED') {
       setTracked('CANCEL');
       return;
     }
+    // نرم، نه مانع: برای شروع کار باید تعهد داده باشی. به‌جای خطا، مودال تعهد
+    // باز می‌شود تا همان‌جا پرش کنی. (تصمیم D-UX-1، بدون باتل‌نک)
+    if (next === 'IN_PROGRESS' && data?.item && !data.item.currentEta) {
+      message.info('برای شروع، اول تخمین و تاریخ تحویل را ثبت کن.');
+      setEtaOpen(true);
+      return;
+    }
     try {
-      await api(`/work-items/${id}/state`, { method: 'PATCH', body: JSON.stringify({ state: next }) });
-      message.success(`به «${t(`state.${next}`)}» منتقل شد.`);
+      await api(`/work-items/${id}/state`, {
+        method: 'PATCH',
+        body: JSON.stringify({ state: next, ...(reason ?? {}) }),
+      });
+      message.success(`به «${labelDual('state', next)}» منتقل شد.`);
       load();
       onChanged();
     } catch (e) {
       message.error((e as Error).message);
     }
   };
+
+  // تأیید فقط برای تأییدکننده‌ی تعیین‌شده یا نقش مدیریتی (هم‌راستا با گارد سرور)
+  const canReview =
+    !!data?.item &&
+    (user?.id === data.item.reviewerId || ['ORG_OWNER', 'ADMIN', 'PROJECT_MANAGER'].includes(user?.role ?? ''));
+
+  const approve = () => changeState(data?.item.requiresQa ? 'IN_QA' : 'DONE');
 
   const submitComment = async () => {
     if (!comment.trim()) return;
@@ -242,13 +263,33 @@ export default function WorkItemDrawer({
         </div>
       }
     >
+      {/* نوار تأیید — وقتی این کار منتظر تأیید توست، جای تأیید صریح و جلوی چشم است */}
+      {item.workflowState === 'IN_REVIEW' && canReview && (
+        <div className="review-bar">
+          <span className="review-bar-text">این کار منتظر تأیید توست.</span>
+          <Space>
+            <Button type="primary" onClick={approve}>
+              تأیید {item.requiresQa ? '→ ارسال به تست' : 'و بستن'}
+            </Button>
+            <Button onClick={() => setSendBack({ reasonText: '' })}>برگشت با توضیح</Button>
+          </Space>
+        </div>
+      )}
+      {item.workflowState === 'IN_REVIEW' && !canReview && (
+        <div className="review-bar" data-tone="muted">
+          <span className="review-bar-text">
+            منتظر تأیید {users.find((u) => u.id === item.reviewerId)?.fullName ?? 'تأییدکننده'} است.
+          </span>
+        </div>
+      )}
+
       {/* نوار عمل — همه‌ی کارهایی که روی این آیتم می‌شود کرد، یک‌جا */}
       <Space wrap style={{ marginBottom: 18 }}>
         <Select
           value={item.workflowState}
           style={{ width: 160 }}
           aria-label="تغییر مرحله"
-          onChange={changeState}
+          onChange={(v) => changeState(v)}
           options={[
             { value: item.workflowState, label: `${labelDual('state', item.workflowState)} (فعلی)`, disabled: true },
             ...nextStates.map((s) => ({ value: s, label: labelDual('state', s) })),
@@ -526,6 +567,38 @@ export default function WorkItemDrawer({
           value={healthDraft?.note ?? ''}
           onChange={(e) => setHealthDraft((d) => (d ? { ...d, note: e.target.value } : d))}
           placeholder="مثلاً: منتظر پاسخ پشتیبانی بانک"
+        />
+      </Modal>
+
+      <Modal
+        open={!!sendBack}
+        title="برگشت برای اصلاح"
+        okText="برگشت بده"
+        cancelText={t('common.cancel')}
+        onCancel={() => setSendBack(null)}
+        okButtonProps={{ disabled: !sendBack?.reasonType }}
+        onOk={async () => {
+          if (!sendBack?.reasonType) return;
+          await changeState('IN_PROGRESS', { reasonType: sendBack.reasonType, reasonText: sendBack.reasonText });
+          setSendBack(null);
+        }}
+      >
+        <p style={{ marginTop: 0, color: 'var(--text-muted)' }}>
+          کار به «در حال انجام» برمی‌گردد. بگو چه چیزی باید درست شود تا در تاریخچه بماند.
+        </p>
+        <Select
+          style={{ width: '100%', marginBottom: 10 }}
+          placeholder="علت برگشت"
+          options={options('reason')}
+          value={sendBack?.reasonType}
+          onChange={(v) => setSendBack((s) => (s ? { ...s, reasonType: v } : s))}
+        />
+        <Input.TextArea
+          rows={3}
+          aria-label="توضیح برگشت"
+          placeholder="مثلاً: تست‌ها را اضافه کن و لبه‌ی مبلغ صفر را هم پوشش بده."
+          value={sendBack?.reasonText ?? ''}
+          onChange={(e) => setSendBack((s) => (s ? { ...s, reasonText: e.target.value } : s))}
         />
       </Modal>
 

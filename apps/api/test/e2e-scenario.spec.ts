@@ -369,6 +369,7 @@ describe('۶) تعهد زمانی و تاریخچه', () => {
 
 describe('۷) چرخه اجرا تا تحویل', () => {
   const goli = () => ({ id: created['آقای گلی'], role: 'CONTRIBUTOR' as const, organizationId: ORG });
+  const torabi = () => ({ id: created['خانم ترابی'], role: 'TEAM_LEAD' as const, organizationId: ORG });
 
   it('مسیر بک‌لاگ تا در حال انجام', async () => {
     await items.changeState(goli(), created['task1'], 'READY');
@@ -381,8 +382,10 @@ describe('۷) چرخه اجرا تا تحویل', () => {
   });
 
   it('از مسیر بازبینی به انجام‌شده می‌رسد و زمان تکمیل ثبت می‌شود', async () => {
+    // مجری به تأیید می‌فرستد، ولی فقط تأییدکننده (ترابی) می‌تواند تأیید کند. (BE-1)
     await items.changeState(goli(), created['task1'], 'IN_REVIEW');
-    const done = await items.changeState(goli(), created['task1'], 'DONE');
+    await expect(items.changeState(goli(), created['task1'], 'DONE')).rejects.toThrow(/تأییدکننده/);
+    const done = await items.changeState(torabi(), created['task1'], 'DONE');
     expect(done.workflowState).toBe('DONE');
     expect(done.completedAt).toBeTruthy();
   });

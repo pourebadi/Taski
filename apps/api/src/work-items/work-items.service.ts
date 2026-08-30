@@ -159,6 +159,21 @@ export class WorkItemsService {
       throw new AppError(422, 'INVALID_TRANSITION', `گذار از «${current}» به «${next}» مجاز نیست.`);
     }
 
+    // رفتن به «منتظر تأیید» بدون تأییدکننده، کار را در صف هیچ‌کس گم می‌کند. (BE-2)
+    if (next === 'IN_REVIEW' && !item.reviewerId) {
+      throw new AppError(422, 'REVIEWER_REQUIRED', 'برای فرستادن به تأیید، اول یک تأییدکننده تعیین کنید.');
+    }
+
+    // تأیید (خروجِ رو‌به‌جلو از منتظر تأیید) فقط با تأییدکننده‌ی تعیین‌شده یا نقش
+    // مدیریتی. پیش‌تر هر کسی می‌توانست کار هر کس را تأیید کند و reviewerId تزئینی بود. (BE-1)
+    const approving = current === 'IN_REVIEW' && (next === 'DONE' || next === 'IN_QA');
+    if (approving) {
+      const elevated = ['ORG_OWNER', 'ADMIN', 'PROJECT_MANAGER'].includes(actor.role);
+      if (actor.id !== item.reviewerId && !elevated) {
+        throw new AppError(403, 'NOT_REVIEWER', 'فقط تأییدکننده‌ی این کار (یا مدیر پروژه) می‌تواند آن را تأیید کند.');
+      }
+    }
+
     // بازبینی اختیاری است، ولی اگر لازم شده باشد نمی‌توان از آن پرید. (D-005)
     // شرط قبلی فقط گذار مستقیم IN_PROGRESS → DONE را می‌بست، پس مسیر
     // IN_PROGRESS → IN_QA → DONE بازبینی را کامل دور می‌زد. حالا ملاک این است
@@ -201,12 +216,14 @@ export class WorkItemsService {
           toValue: next,
         },
       });
-      if (next === 'CANCELLED' && reason) {
+      // علتِ لغو، و علتِ «برگشت با توضیح» از بازبینی، هر دو در دفتر تغییرات می‌مانند. (BE-4)
+      const sendingBack = current === 'IN_REVIEW' && next === 'IN_PROGRESS';
+      if (reason?.reasonType && (next === 'CANCELLED' || sendingBack)) {
         await tx.changeRecord.create({
           data: {
             id: randomUUID(),
             workItemId: id,
-            field: 'CANCEL',
+            field: next === 'CANCELLED' ? 'CANCEL' : 'STATE',
             fromValue: current,
             toValue: next,
             reasonType: reason.reasonType,

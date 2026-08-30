@@ -685,6 +685,29 @@ body {
   transition: transform 0.15s ease;
 }
 
+/* نوار تأیید در دراور — وقتی کار منتظر تأیید کاربر است، جلوی چشم و صریح */
+.review-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-line);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+}
+.review-bar[data-tone='muted'] {
+  background: var(--surface-sunken);
+  border-color: var(--line-soft);
+}
+.review-bar-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
 /* پیش‌نمایش زنده‌ی «تخمین → تاریخ تحویل» */
 .estimate-preview {
   display: flex;

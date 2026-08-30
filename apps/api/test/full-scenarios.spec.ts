@@ -187,11 +187,13 @@ describe('س۲) هر گذار مجاز و غیرمجاز وضعیت', () => {
       ownerId: P['ترابی'], primaryAssigneeId: P['گلی'], reviewerId: P['ترابی'],
       requiresReview: true, requiresQa: true,
     });
+    const torabi = as('ترابی', 'TEAM_LEAD'); // مالک و تأییدکننده‌ی این کار
     await items.changeState(goli(), item.id, 'IN_PROGRESS');
     await expect(items.changeState(goli(), item.id, 'DONE')).rejects.toThrow(/بازبینی/);
     await items.changeState(goli(), item.id, 'IN_REVIEW');
-    await expect(items.changeState(goli(), item.id, 'DONE')).rejects.toThrow(/QA/);
-    await items.changeState(goli(), item.id, 'IN_QA');
+    // فقط تأییدکننده تأیید می‌کند؛ و چون QA لازم است، مستقیم به DONE هم نمی‌رود. (BE-1)
+    await expect(items.changeState(torabi, item.id, 'DONE')).rejects.toThrow(/QA/);
+    await items.changeState(torabi, item.id, 'IN_QA');
     const done = await items.changeState(goli(), item.id, 'DONE');
     expect(done.workflowState).toBe('DONE');
   });
@@ -262,7 +264,7 @@ describe('س۳) هر چهار حالت سلامت تحویل', () => {
   it('سلامت و مرحله اجرا کاملاً مستقل‌اند', async () => {
     const item = await items.create(daliri(), {
       title: 'مسدود ولی در جریان', workType: 'TASK', workStream: 'PRODUCT',
-      priority: 'P1', ownerId: P['دلیری'], primaryAssigneeId: P['مقدم'],
+      priority: 'P1', ownerId: P['دلیری'], primaryAssigneeId: P['مقدم'], reviewerId: P['دلیری'],
     });
     await items.changeState(daliri(), item.id, 'IN_PROGRESS');
     const blocked = await items.changeHealth(daliri(), item.id, 'BLOCKED', 'منتظر محتوا');

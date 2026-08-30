@@ -54,6 +54,28 @@ describe('گذار وضعیت', () => {
   });
 });
 
+describe('اجبار تأییدکننده در بازبینی', () => {
+  it('رفتن به «منتظر تأیید» بدون تأییدکننده رد می‌شود', async () => {
+    const { svc } = svcWith({ ...base, workflowState: 'IN_PROGRESS', reviewerId: null });
+    await expect(svc.changeState(actor, 'w1', 'IN_REVIEW')).rejects.toThrow(/تأییدکننده/);
+  });
+
+  it('تأیید توسط غیرِتأییدکننده رد می‌شود', async () => {
+    const { svc } = svcWith({ ...base, workflowState: 'IN_REVIEW', reviewerId: 'someone-else', requiresReview: true });
+    await expect(svc.changeState(actor, 'w1', 'DONE')).rejects.toThrow(/تأییدکننده/);
+  });
+
+  it('تأییدکننده‌ی تعیین‌شده می‌تواند تأیید کند', async () => {
+    const { svc } = svcWith({ ...base, workflowState: 'IN_REVIEW', reviewerId: 'u1', requiresReview: true });
+    await expect(svc.changeState(actor, 'w1', 'DONE')).resolves.toBeTruthy();
+  });
+
+  it('مدیر پروژه می‌تواند تأیید کند حتی اگر تأییدکننده نباشد', async () => {
+    const { svc } = svcWith({ ...base, workflowState: 'IN_REVIEW', reviewerId: 'x', requiresReview: true });
+    await expect(svc.changeState(pmActor, 'w1', 'DONE')).resolves.toBeTruthy();
+  });
+});
+
 describe('سلامت تحویل', () => {
   it('وضعیت مسدود بدون توضیح رد می‌شود', async () => {
     const { svc } = svcWith(base);
