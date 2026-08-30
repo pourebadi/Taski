@@ -206,7 +206,9 @@ export default function WorkItemDrawer({
     }
   };
 
-  if (!data) {
+  // شرط قبلی فقط !data را می‌گرفت. اگر سرور چیزی برمی‌گرداند که item ندارد
+  // — پاسخ ناقص، شکل غیرمنتظره، یا بدنه‌ی خالی — همین‌جا کل صفحه سفید می‌شد.
+  if (!data?.item) {
     return (
       <Drawer open={open} onClose={onClose} width={760}>
         <Skeleton active paragraph={{ rows: 8 }} />
@@ -214,7 +216,17 @@ export default function WorkItemDrawer({
     );
   }
 
-  const { item, metrics } = data;
+  const item = data.item;
+  const metrics = data.metrics ?? {
+    etaShiftCount: 0,
+    lastShiftWorkingDays: null,
+    cumulativeMovementWorkingDays: 0,
+    driftFromFirstBaseline: null,
+  };
+  const commitments: Commitment[] = data.commitments ?? [];
+  const changes: ChangeRecord[] = data.changes ?? [];
+  const activities: Detail['activities'] = data.activities ?? [];
+  const comments: Detail['comments'] = data.comments ?? [];
   const nextStates = ALLOWED_NEXT[item.workflowState] ?? [];
 
   return (
@@ -362,14 +374,14 @@ export default function WorkItemDrawer({
         items={[
           {
             key: 'commitments',
-            label: `تاریخچه تعهد (${faDigits(data.commitments.length)})`,
-            children: data.commitments.length ? (
+            label: `تاریخچه تعهد (${faDigits(commitments.length)})`,
+            children: commitments.length ? (
               <Table<Commitment>
                 rowKey="id"
                 size="small"
                 pagination={false}
                 scroll={{ x: 560 }}
-                dataSource={data.commitments}
+                dataSource={commitments}
                 columns={[
                   { title: 'نسخه', dataIndex: 'versionNo', width: 64, render: (v) => faDigits(v) },
                   {
@@ -410,14 +422,14 @@ export default function WorkItemDrawer({
           },
           {
             key: 'changes',
-            label: `دفتر تغییرات (${faDigits(data.changes.length)})`,
-            children: data.changes.length ? (
+            label: `دفتر تغییرات (${faDigits(changes.length)})`,
+            children: changes.length ? (
               <Table<ChangeRecord>
                 rowKey="id"
                 size="small"
                 pagination={false}
                 scroll={{ x: 560 }}
-                dataSource={data.changes}
+                dataSource={changes}
                 columns={[
                   { title: 'چه چیزی', dataIndex: 'field', width: 90, render: (f) => FIELD_LABEL[f] ?? f },
                   { title: 'از', dataIndex: 'fromValue', render: (v) => v ?? '—' },
@@ -436,15 +448,15 @@ export default function WorkItemDrawer({
           },
           {
             key: 'comments',
-            label: `دیدگاه‌ها (${faDigits(data.comments.length)})`,
+            label: `دیدگاه‌ها (${faDigits(comments.length)})`,
             children: (
               <>
-                {data.comments.length === 0 ? (
+                {comments.length === 0 ? (
                   <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="هنوز دیدگاهی ثبت نشده." />
                 ) : (
                   <Timeline
                     style={{ marginTop: 8 }}
-                    items={data.comments.map((c) => ({
+                    items={comments.map((c) => ({
                       color: 'gray',
                       children: (
                         <>
@@ -479,7 +491,7 @@ export default function WorkItemDrawer({
             children: (
               <Timeline
                 style={{ marginTop: 8 }}
-                items={data.activities.map((a) => ({
+                items={activities.map((a) => ({
                   color: 'gray',
                   children: (
                     <>
