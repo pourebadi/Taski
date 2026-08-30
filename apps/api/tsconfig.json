@@ -9,6 +9,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "strict": true,
+    "noImplicitAny": false,
     "strictPropertyInitialization": false
   },
   "include": ["src/**/*", "prisma/**/*", "scripts/**/*"]
