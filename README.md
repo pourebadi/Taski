@@ -60,7 +60,7 @@ Browser → one URL → NestJS Runtime
                      └── Files      data/uploads/
 ```
 
-**Out of scope for MVP:** PostgreSQL, Redis, message queues, S3, SMTP, OAuth/SSO, Docker, Kubernetes, microservices, horizontal scaling.
+**No external dependencies:** No PostgreSQL, Redis, message queues, S3, SMTP, or OAuth needed. Everything runs in one process.
 
 ---
 
@@ -76,7 +76,7 @@ Browser → one URL → NestJS Runtime
 
 ---
 
-## Quick Start
+## Quick Start (Development)
 
 ```bash
 # 1. Clone & configure
@@ -93,25 +93,275 @@ npm run db:seed
 npm run dev                # API on :3000, Web on :5173
 ```
 
-**Production:**
+---
+
+## Deployment Guide (Self-Hosted Server)
+
+### Prerequisites
+
+- A Linux server (Ubuntu 22.04+, Debian 12+, CentOS 9+, or similar)
+- SSH access to the server
+- A domain name (optional but recommended)
+
+---
+
+### Option A: Docker (Recommended)
+
+The simplest way. One command to run.
+
+#### 1. Install Docker on the server
 
 ```bash
-npm run build && npm start
+# Ubuntu/Debian
+sudo apt update && sudo apt install -y docker.io docker-compose-plugin
+sudo systemctl enable --now docker
+sudo usermod -aG docker $USER
+# Log out and back in for group to take effect
+```
+
+#### 2. Clone the project
+
+```bash
+git clone https://github.com/pourebadi/Taski.git
+cd Taski
+```
+
+#### 3. Configure environment
+
+```bash
+cp .env.example .env
+nano .env
+```
+
+Fill in these values:
+
+```env
+NODE_ENV=production
+PORT=3000
+JWT_ACCESS_SECRET=<random-64-char-string>
+JWT_REFRESH_SECRET=<random-64-char-string>
+ADMIN_USERNAME=admin
+ADMIN_NAME=System Admin
+ADMIN_PASSWORD=<strong-password>
+TZ=Asia/Tehran
+```
+
+Generate random secrets:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+#### 4. Build and run
+
+```bash
+docker compose up -d --build
+```
+
+The app is now running on `http://your-server-ip:3000`.
+
+#### 5. Useful Docker commands
+
+```bash
+docker compose logs -f          # View logs
+docker compose restart          # Restart
+docker compose down             # Stop
+docker compose up -d --build    # Rebuild and restart (after git pull)
+```
+
+#### 6. Update to latest version
+
+```bash
+cd Taski
+git pull
+docker compose up -d --build
+```
+
+---
+
+### Option B: Direct Install (No Docker)
+
+If Docker is not available or you prefer running directly on the OS.
+
+#### 1. Install Node.js 20
+
+```bash
+# Ubuntu/Debian
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Verify
+node -v   # should show v20.x
+npm -v
+```
+
+#### 2. Clone and configure
+
+```bash
+git clone https://github.com/pourebadi/Taski.git
+cd Taski
+cp .env.example .env
+nano .env    # fill in the values (see Option A, step 3)
+```
+
+#### 3. Install, build, and migrate
+
+```bash
+npm install
+npx prisma generate --schema=apps/api/prisma/schema.prisma
+npm run build
+npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
+npm run db:seed
+```
+
+#### 4. Run with PM2 (process manager)
+
+```bash
+# Install PM2 globally
+sudo npm install -g pm2
+
+# Start the app
+pm2 start npm --name taski -- start
+
+# Auto-start on server boot
+pm2 startup
+pm2 save
+```
+
+#### 5. PM2 commands
+
+```bash
+pm2 status              # Check status
+pm2 logs taski          # View logs
+pm2 restart taski       # Restart
+pm2 stop taski          # Stop
+```
+
+#### 6. Update to latest version
+
+```bash
+cd Taski
+git pull
+npm install
+npm run build
+npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma
+pm2 restart taski
+```
+
+---
+
+### Setting Up a Domain with HTTPS
+
+After the app is running, set up Nginx as a reverse proxy with free SSL from Let's Encrypt.
+
+#### 1. Install Nginx and Certbot
+
+```bash
+sudo apt install -y nginx certbot python3-certbot-nginx
+```
+
+#### 2. Create Nginx config
+
+```bash
+sudo nano /etc/nginx/sites-available/taski
+```
+
+Paste this (replace `taski.yourdomain.com`):
+
+```nginx
+server {
+    listen 80;
+    server_name taski.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+#### 3. Enable and get SSL
+
+```bash
+sudo ln -s /etc/nginx/sites-available/taski /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+
+# Get free SSL certificate
+sudo certbot --nginx -d taski.yourdomain.com
+```
+
+Done. The app is now live at `https://taski.yourdomain.com`.
+
+---
+
+### Backup
+
+The database is a single SQLite file. Back it up regularly:
+
+```bash
+# Manual backup
+cp apps/api/data/app.db "backups/app-$(date +%Y%m%d-%H%M%S).db"
+
+# Or use the built-in command (from inside the project directory)
+npm run backup:now
+
+# Automated daily backup (cron)
+crontab -e
+# Add this line:
+0 3 * * * cd /path/to/Taski && cp apps/api/data/app.db "/path/to/backups/app-$(date +\%Y\%m\%d).db"
+```
+
+For Docker deployments, the data lives in a Docker volume:
+
+```bash
+# Find volume location
+docker volume inspect taski_taski_data
+
+# Backup
+docker compose exec taski cp /app/apps/api/data/app.db /app/apps/api/data/backup.db
+docker compose cp taski:/app/apps/api/data/backup.db ./backup-$(date +%Y%m%d).db
+```
+
+---
+
+### Firewall
+
+Only ports 80 (HTTP), 443 (HTTPS), and 22 (SSH) need to be open:
+
+```bash
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw enable
+```
+
+If not using Nginx, open port 3000 directly:
+
+```bash
+sudo ufw allow 3000
 ```
 
 ---
 
 ## Environment Variables
 
-| Variable | Purpose |
-|---|---|
-| `DATABASE_URL` | SQLite path, e.g. `file:./data/app.db` |
-| `JWT_ACCESS_SECRET` | Signing secret for access tokens |
-| `JWT_REFRESH_SECRET` | Signing secret for refresh tokens |
-| `ADMIN_USERNAME` | Bootstrap admin username |
-| `ADMIN_PASSWORD` | Bootstrap admin password |
-| `ADMIN_NAME` | Bootstrap admin display name |
-| `TZ` | Defaults to `Asia/Tehran` |
+| Variable | Required | Purpose |
+|---|---|---|
+| `DATABASE_URL` | Yes | SQLite path, e.g. `file:./data/app.db` |
+| `JWT_ACCESS_SECRET` | Yes | Signing secret for access tokens |
+| `JWT_REFRESH_SECRET` | Yes | Signing secret for refresh tokens |
+| `ADMIN_USERNAME` | Yes | Bootstrap admin username (first run) |
+| `ADMIN_PASSWORD` | Yes | Bootstrap admin password (first run) |
+| `ADMIN_NAME` | No | Bootstrap admin display name |
+| `PORT` | No | Server port (default: 3000) |
+| `NODE_ENV` | No | `production` or `development` |
+| `TZ` | No | Timezone (default: `Asia/Tehran`) |
+| `UPLOAD_MAX_MB` | No | Max upload size (default: 10) |
+| `STORAGE_QUOTA_GB` | No | Storage quota (default: 2) |
 
 ---
 
@@ -148,6 +398,20 @@ docs/                 Product docs, audit report, architecture decisions, change
 | `npm run db:seed:pilot` | Seed pilot team (IranPeymex roster) |
 | `npm run backup:now` | Backup database |
 | `npm run admin:reset-password -- --username=<x>` | Reset a user's password |
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---|---|
+| `EACCES` permission error | Run `sudo chown -R $USER:$USER /path/to/Taski` |
+| Port 3000 already in use | Change `PORT` in `.env` or kill the process: `lsof -ti:3000 \| xargs kill` |
+| Database locked error | Only one instance should run at a time |
+| Blank page after deploy | Run `npm run build` — the frontend must be built |
+| Migration error | Make sure `DATABASE_URL` is set correctly in `.env` |
+| Can't login after deploy | Run `npm run db:seed` to create the admin account |
+| Docker build fails | Make sure Docker has at least 2GB RAM available |
 
 ---
 

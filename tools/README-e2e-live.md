@@ -16,7 +16,7 @@ node tools/e2e-live.mjs --read-only
 node tools/e2e-live.mjs
 
 # با آدرس یا حساب دیگر
-node tools/e2e-live.mjs --base=https://taski.fly.dev --username=admin --password=...
+node tools/e2e-live.mjs --base=https://your-server.example.com --username=admin --password=...
 ```
 
 ## ⚠ قبل از اجرای کامل بخوانید
